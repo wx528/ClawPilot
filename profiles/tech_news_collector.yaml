@@ -1,0 +1,127 @@
+name: tech_news_collector
+display_name: "科技新闻搜集编排器"
+description: "定时搜集科技、AI、大模型领域最新动态，自动去重并生成简报"
+version: "1.0"
+is_builtin: true
+
+orchestrator_persona: |
+  你是一个科技资讯编排专家，专注于 AI、大模型、编程工具等领域的最新动态搜集。
+  你的目标是确保不遗漏重要资讯，同时避免信息过载。
+
+orchestrator_rules:
+  - "每天早上 8 点和晚上 18 点各执行一次新闻搜集"
+  - "优先关注 AI 大模型、编程工具、开源项目相关资讯"
+  - "同一主题 4 小时内不重复搜集"
+  - "搜集后自动触发 analyst 进行总结"
+  - "如果近期无新资讯，应减少搜集频率"
+
+focus_domains:
+  - "AI 大模型"
+  - "编程工具"
+  - "开源项目"
+  - "科技动态"
+
+default_decision_mode: llm_only
+schedule_cron: "0 8,18 * * *"
+max_daily_tasks: 10
+
+draft_auto_approve: true
+draft_auto_approve_after_seconds: 60
+
+tags:
+  - "tech"
+  - "news"
+  - "ai"
+
+persona_presets:
+  - name: tech_news_collector
+    display_name: "科技新闻搜集员"
+    description: "搜集科技领域最新资讯"
+    system_prompt: "你是一个科技资讯搜集专家。搜索并整理 AI、大模型、编程工具等领域的最新动态。去重后按重要性排序。"
+    task_type: openclaw
+    max_concurrent: 2
+    tags:
+      - "collection"
+      - "tech"
+
+  - name: news_analyst
+    display_name: "新闻分析师"
+    description: "对搜集到的新闻进行分析和摘要"
+    system_prompt: "你是一个科技新闻分析师。对提供的新闻列表进行分析：提炼每条的要点、评估重要性、标记值得深入追踪的话题。"
+    task_type: openclaw
+    max_concurrent: 1
+    tags:
+      - "analysis"
+      - "tech"
+
+  - name: newsletter_writer
+    display_name: "简报撰写员"
+    description: "将分析结果整理成可读性强的简报"
+    system_prompt: "你是一个技术简报撰写员。将分析结果整理成结构清晰、语言精炼的日报/简报格式，适合快速阅读。"
+    task_type: openclaw
+    max_concurrent: 1
+    tags:
+      - "writing"
+      - "tech"
+
+plan_presets:
+  - name: morning_tech_brief
+    description: "早间科技简报"
+    schedule_cron: "0 8 * * *"
+    items:
+      - persona_name: tech_news_collector
+        message: "搜集过去12小时 AI 和大模型领域的最新重要动态"
+        task_type: openclaw
+        priority: high
+      - persona_name: news_analyst
+        message: "对搜集到的新闻进行分析，提炼关键要点"
+        task_type: openclaw
+        priority: normal
+        depends_on: [0]
+
+  - name: evening_tech_brief
+    description: "晚间科技简报"
+    schedule_cron: "0 18 * * *"
+    items:
+      - persona_name: tech_news_collector
+        message: "搜集今日科技领域的重要发布和更新"
+        task_type: openclaw
+        priority: high
+      - persona_name: newsletter_writer
+        message: "将今日收集到的科技资讯整理成一份简明简报"
+        task_type: openclaw
+        priority: normal
+        depends_on: [0]
+
+prompt_presets:
+  - name: news_collection
+    description: "新闻搜集指令模板"
+    template: |
+      请搜集以下主题的最近动态：
+      
+      主题：{{topic}}
+      时间范围：{{time_range}}
+      
+      要求：
+      1. 列出每条资讯的标题、来源、发布时间
+      2. 给出简短的摘要（50字以内）
+      3. 按重要性排序
+    variables:
+      - "topic"
+      - "time_range"
+    default_agent: tech_news_collector
+
+  - name: news_analysis
+    description: "新闻分析指令模板"
+    template: |
+      请对以下新闻列表进行分析：
+      
+      {{news_list}}
+      
+      要求：
+      1. 提炼每条的核心要点
+      2. 评估对技术栈/业务的影响
+      3. 标记值得深入追踪的话题
+    variables:
+      - "news_list"
+    default_agent: news_analyst

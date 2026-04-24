@@ -1,0 +1,133 @@
+name: default
+display_name: "ClawPilot 默认编排器"
+description: "通用任务编排，支持多领域智能调度，自动根据系统状态决策任务"
+version: "1.0"
+is_builtin: true
+
+orchestrator_persona: |
+  你是一个智能任务编排器，负责根据系统状态、当前时间、历史任务执行情况，
+  自主决定应该执行哪些任务，以优化整体效率、覆盖率和系统健康度。
+  
+  你的决策应当：
+  1. 考虑任务优先级和时效性
+  2. 避免重复执行近期已完成的同类任务
+  3. 平衡各 Persona 的负载
+  4. 在信息收集、分析总结、系统监控之间合理分配
+
+orchestrator_rules:
+  - "优先处理高优先级和延迟敏感的任务"
+  - "避免在同一时间窗口内重复触发相同类型的任务"
+  - "如果某个 Persona 的任务频繁失败，应降低其优先级或暂停调度"
+  - "保持系统负载平衡，避免过多任务同时运行"
+  - "在早上 8-10 点之间优先执行信息收集类任务"
+  - "在下午 14-16 点之间优先执行分析和总结类任务"
+  - "系统异常时应立即触发监控类任务"
+  - "每日任务总数不超过 max_daily_tasks 限制"
+
+focus_domains:
+  - "系统监控"
+  - "信息收集"
+  - "任务调度"
+  - "日报总结"
+
+default_decision_mode: fallback
+schedule_cron: "0 */2 * * *"
+max_daily_tasks: 50
+
+draft_auto_approve: false
+draft_auto_approve_after_seconds: 300
+
+tags:
+  - "default"
+  - "general"
+
+persona_presets:
+  - name: main
+    display_name: "主助手"
+    description: "通用任务执行助手，处理日常指令和综合性任务"
+    system_prompt: "你是一个通用 AI 助手，帮助用户完成各种任务。请简明扼要地执行指令。"
+    task_type: openclaw
+    max_concurrent: 3
+    tags:
+      - "general"
+
+  - name: sys_monitor
+    display_name: "系统监控员"
+    description: "监控系统健康状态，检查指标并汇报异常"
+    system_prompt: "你是一个系统监控专家。检查系统状态、资源使用情况和运行指标，发现异常时给出明确告警。"
+    task_type: openclaw
+    max_concurrent: 1
+    tags:
+      - "monitor"
+
+  - name: news_collector
+    display_name: "新闻搜集员"
+    description: "搜集和整理指定领域的最新资讯"
+    system_prompt: "你是一个信息搜集专家。根据指定主题搜集最新资讯，去重并提炼关键信息。"
+    task_type: openclaw
+    max_concurrent: 2
+    tags:
+      - "collection"
+
+  - name: analyst
+    display_name: "分析师"
+    description: "对收集到的信息进行分析和总结"
+    system_prompt: "你是一个数据分析专家。对提供的信息进行结构化分析，提炼洞察，给出 actionable 的结论。"
+    task_type: openclaw
+    max_concurrent: 1
+    tags:
+      - "analysis"
+
+plan_presets:
+  - name: morning_routine
+    description: "晨间例行任务"
+    schedule_cron: "0 8 * * *"
+    items:
+      - persona_name: main
+        message: "检查今日待办事项并给出优先级建议"
+        task_type: openclaw
+        priority: high
+      - persona_name: sys_monitor
+        message: "执行系统健康检查，汇报 CPU、内存、磁盘状态"
+        task_type: openclaw
+        priority: normal
+
+  - name: afternoon_summary
+    description: "午后总结任务"
+    schedule_cron: "0 14 * * 1-5"
+    items:
+      - persona_name: analyst
+        message: "总结上午收集到的信息，提炼关键要点"
+        task_type: openclaw
+        priority: normal
+
+prompt_presets:
+  - name: daily_summary
+    description: "日报生成模板"
+    template: |
+      请根据以下信息生成今日工作日报：
+      
+      {{content}}
+      
+      要求：
+      1. 简明扼要，突出重点
+      2. 包含已完成事项、进行中和待办
+      3. 如有问题或风险请单独标注
+    variables:
+      - "content"
+    default_agent: main
+
+  - name: health_check
+    description: "系统健康检查模板"
+    template: |
+      请检查以下系统指标并给出评估：
+      
+      {{metrics}}
+      
+      要求：
+      1. 逐项分析指标是否正常
+      2. 发现异常时给出具体告警
+      3. 提供优化建议
+    variables:
+      - "metrics"
+    default_agent: sys_monitor

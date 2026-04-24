@@ -1,0 +1,51 @@
+# ClawPilot 编排调度配置文件示例
+# 用法：在 UI 中点击「加载配置文件」选择此文件，然后点击「执行编排周期」启动调度
+
+# ========== 定时任务（Cron）==========
+# 支持标准 Cron 表达式：分 时 日 月 周
+ScheduleTasks:
+  morning-greeting:
+    trigger: cron
+    cron: "0 8 * * *"          # 每天早上 8:00
+    tasks:
+      - agent_name: main
+        message: "今天有什么重要安排？"
+
+  daily-summary:
+    trigger: cron
+    cron: "0 18 * * 1-5"       # 工作日晚上 18:00
+    min_time: 60               # 最少执行 60 秒
+    max_time: 300              # 最多执行 300 秒
+    retry: 2                   # 失败重试 2 次
+    tasks:
+      - agent_name: main
+        message: "总结今天的工作进展"
+
+  weekly-plan:
+    trigger: cron
+    cron: "0 9 * * 1"          # 每周一早上 9:00
+    tasks:
+      - agent_name: main
+        message: "制定本周工作计划"
+
+# ========== 循环任务（Loop）==========
+# interval: 循环间隔（秒）
+LoopTasks:
+  health-check:
+    interval: 300              # 每 5 分钟执行一次
+    tasks:
+      - agent_name: main
+        message: "检查系统健康状态，汇报当前运行指标"
+
+  news-brief:
+    interval: 3600             # 每小时执行一次
+    randomized: true           # 启用随机延迟
+    random_max: 10             # 最大随机延迟 10 分钟
+    tasks:
+      - agent_name: main
+        message: "获取最新的科技新闻简报"
+
+# ========== 全局配置（可选）==========
+DefaultTimezone: Asia/Shanghai
+PollIntervalSeconds: 60
+EnableLogging: true

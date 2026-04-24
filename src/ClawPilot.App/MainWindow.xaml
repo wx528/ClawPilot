@@ -1,0 +1,524 @@
+<Window x:Class="ClawPilot.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ClawPilot — OpenClaw Desktop" 
+        Width="960" Height="600"
+        WindowStyle="None" AllowsTransparency="True"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Border CornerRadius="8" Background="#FF1E1E2E" BorderBrush="#40FFFFFF" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题栏 -->
+            <Border Grid.Row="0" Background="#FF1a1a2e" CornerRadius="8,8,0,0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="12,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🦞 ClawPilot" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                        <TextBlock Text=" — OpenClaw Desktop" FontSize="11" Foreground="#8a9ba8" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <!-- Daemon 状态指示灯 -->
+                        <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#F44336"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDaemonRunning}" Value="True">
+                                            <Setter Property="Fill" Value="#4CAF50"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding QueueStatusText}" FontSize="11" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <!-- 自动驾驶状态指示灯 -->
+                        <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#555555"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AutopilotVm.IsRunning}" Value="True">
+                                            <Setter Property="Fill" Value="#7C3AED"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="自动驾驶" FontSize="11" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#8a9ba8"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AutopilotVm.IsRunning}" Value="True">
+                                            <Setter Property="Foreground" Value="#7C3AED"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Button Content="✕" Background="Transparent" Foreground="#8a9ba8" BorderThickness="0" 
+                                FontSize="14" Padding="8,4" Cursor="Hand" Click="Close_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 主内容区 -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 侧边导航栏 -->
+                <Border Grid.Column="0" Background="#FF1a1a2e">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <RadioButton x:Name="NavTasks" Content="📋" ToolTip="任务列表" Style="{StaticResource NavButtonStyle}" IsChecked="True" Click="NavTasks_Click"/>
+                        <RadioButton x:Name="NavOps" Content="⚡" ToolTip="快捷操作" Style="{StaticResource NavButtonStyle}" Click="NavOps_Click" Margin="0,12,0,0"/>
+                        <RadioButton x:Name="NavOrch" Content="🎯" ToolTip="任务编排" Style="{StaticResource NavButtonStyle}" Click="NavOrch_Click" Margin="0,12,0,0"/>
+                        <RadioButton x:Name="NavDrafts" Content="📝" ToolTip="编排草案" Style="{StaticResource NavButtonStyle}" Click="NavDrafts_Click" Margin="0,12,0,0"/>
+                        <RadioButton x:Name="NavAutopilot" Content="🧠" ToolTip="自动驾驶" Style="{StaticResource NavButtonStyle}" Click="NavAutopilot_Click" Margin="0,12,0,0"/>
+                        <RadioButton x:Name="NavSettings" Content="⚙️" ToolTip="设置" Style="{StaticResource NavButtonStyle}" Click="NavSettings_Click" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 内容页 -->
+                <Grid Grid.Column="1" Background="#FF1E1E2E">
+                    <!-- 任务列表页 -->
+                    <Grid x:Name="PageTasks" Visibility="Visible">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="280"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左侧任务列表 -->
+                        <Border Grid.Column="0" Background="#FF263340" BorderBrush="#1e2d3a" BorderThickness="0,0,1,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Padding="12,10" Background="#263340">
+                                    <StackPanel>
+                                        <TextBlock Text="筛选状态" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="TaskStatusFilter" FontSize="12" Padding="4,2">
+                                            <ComboBoxItem Content="全部" IsSelected="True"/>
+                                            <ComboBoxItem Content="pending"/>
+                                            <ComboBoxItem Content="running"/>
+                                            <ComboBoxItem Content="success"/>
+                                            <ComboBoxItem Content="failed"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Padding="12,8" Background="#263340" BorderBrush="#1e2d3a" BorderThickness="0,0,0,1">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding TaskItems.Count, FallbackValue=0}" FontSize="16" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                        <TextBlock Text=" 个任务" FontSize="12" Foreground="#8a9ba8" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <ListBox Grid.Row="2" x:Name="TaskList" ItemsSource="{Binding TaskItems}" SelectedItem="{Binding SelectedTask}"
+                                         BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="8,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Grid.Column="0" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Fill" Value="#FF9800"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Running"><Setter Property="Fill" Value="#2196F3"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Success"><Setter Property="Fill" Value="#4CAF50"/></DataTrigger>
+                                                                <DataTrigger Binding="{Binding Status}" Value="Failed"><Setter Property="Fill" Value="#F44336"/></DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayText}" FontSize="13" FontWeight="Medium" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding MessagePreview}" FontSize="11" Foreground="#8a9ba8" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <Border Grid.Row="3" Padding="12,8" Background="#263340">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="刷新" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="12" Padding="8,4" Cursor="Hand" Command="{Binding RefreshCommand}"/>
+                                        <Button Content="清除已完成" Background="Transparent" Foreground="#FF9800" BorderThickness="0" FontSize="12" Padding="8,4" Cursor="Hand" Margin="12,0,0,0" Command="{Binding ClearCompletedTasksCommand}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- 右侧任务详情 -->
+                        <Grid Grid.Column="1" Background="#FF1E1E2E">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Padding="20,10" BorderBrush="#1e2d3a" BorderThickness="0,0,0,1">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding SelectedTask.DisplayText, FallbackValue='选择任务'}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                    <TextBlock Text="{Binding SelectedTask.StatusText, FallbackValue=''}" FontSize="12" Foreground="#8a9ba8" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="20">
+                                <Grid>
+                                <StackPanel x:Name="TaskDetailPanel" Visibility="Collapsed">
+                                    <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="ID" FontSize="12" Foreground="#8a9ba8"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedTask.Id}" FontSize="13" Foreground="White" FontFamily="Consolas, Microsoft YaHei"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Agent" FontSize="12" Foreground="#8a9ba8"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedTask.AgentName}" FontSize="13" Foreground="White"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="状态" FontSize="12" Foreground="#8a9ba8"/>
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal">
+                                                <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                    <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Fill" Value="#FF9800"/>
+                                                        <Style.Triggers><DataTrigger Binding="{Binding SelectedTask.Status}" Value="Running"><Setter Property="Fill" Value="#2196F3"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding SelectedTask.Status}" Value="Success"><Setter Property="Fill" Value="#4CAF50"/></DataTrigger>
+                                                            <DataTrigger Binding="{Binding SelectedTask.Status}" Value="Failed"><Setter Property="Fill" Value="#F44336"/></DataTrigger></Style.Triggers></Style></Ellipse.Style>
+                                                </Ellipse>
+                                                <TextBlock Text="{Binding SelectedTask.StatusText}" FontSize="13" Foreground="White"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="消息" FontSize="12" Foreground="#8a9ba8"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedTask.Message}" FontSize="13" Foreground="White" TextWrapping="Wrap"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="类型" FontSize="12" Foreground="#8a9ba8"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedTask.TaskType}" FontSize="13" Foreground="White" FontFamily="Consolas, Microsoft YaHei"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="0" Text="来源" FontSize="12" Foreground="#8a9ba8"/>
+                                            <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedTask.Source}" FontSize="13" Foreground="White" FontFamily="Consolas, Microsoft YaHei"/>
+                                        </Grid>
+                                    </Border>
+                                    <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                        <StackPanel>
+                                            <TextBlock Text="任务输出" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedTask.Output, FallbackValue='暂无输出'}" IsReadOnly="True" FontFamily="Consolas, Microsoft YaHei" FontSize="12"
+                                                     Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="12"
+                                                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Height="200"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="删除任务" Background="#F44336" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Command="{Binding DeleteSelectedTaskCommand}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- 空状态 -->
+                                <StackPanel x:Name="TaskEmptyHint" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Visible">
+                                    <TextBlock Text="📋" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                    <TextBlock Text="选择左侧任务查看详情" FontSize="13" Foreground="#8a9ba8" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                </Grid>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+
+                    <!-- 快捷操作页 -->
+                    <Grid x:Name="PageOps" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+                            <StackPanel>
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="添加任务" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Agent" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="AddAgentInput" Text="{Binding AgentName, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Grid.Column="1" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/></Grid>
+                                        <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="消息" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="AddMessageInput" Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" FontSize="13" Grid.Column="1" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/></Grid>
+                                        <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="类型" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <ComboBox x:Name="AddTypeInput" Grid.Column="1" Padding="8,6" FontSize="13" SelectedIndex="0" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a">
+                                                <ComboBoxItem Content="openclaw"/><ComboBoxItem Content="langgraph"/></ComboBox></Grid>
+                                        <Button Content="添加任务" Background="#667EEA" Foreground="White" BorderThickness="0" FontSize="12" Padding="16,8" Cursor="Hand" Command="{Binding AddTaskCommand}" Margin="0,8,0,0" HorizontalAlignment="Left"/>
+                                        <TextBlock x:Name="AddResultText" Text="" FontSize="12" Foreground="#8a9ba8" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#263340" CornerRadius="8" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Daemon 控制" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button x:Name="DaemonStartBtn" Content="启动 Daemon" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Command="{Binding ToggleDaemonCommand}"/>
+                                            <Button x:Name="DaemonStopBtn" Content="停止 Daemon" Background="#F44336" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Margin="8,0,0,0" Command="{Binding ToggleDaemonCommand}"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="DaemonControlResult" Text="" FontSize="12" Foreground="#8a9ba8" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- 编排页 -->
+                    <Grid x:Name="PageOrchestrator" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+                            <StackPanel>
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="快捷操作" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="加载配置文件" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Command="{Binding LoadConfigFromFileCommand}"/>
+                                            <Button Content="执行编排周期" Background="#667EEA" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Margin="8,0,0,0" Command="{Binding ToggleOrchestratorCommand}"/>
+                                            <Button Content="刷新全部" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Margin="8,0,0,0" Command="{Binding RefreshCommand}"/>
+                                        </StackPanel>
+                                        <TextBlock x:Name="OrchResultText" Text="" FontSize="12" Foreground="#8a9ba8" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- 资源概览 -->
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="资源概览" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="活跃 Persona" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                                <TextBlock x:Name="DashActivePersonas" Text="--" FontSize="28" FontWeight="Light" Foreground="#667EEA"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="活跃计划" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                                <TextBlock x:Name="DashActivePlans" Text="--" FontSize="28" FontWeight="Light" Foreground="#4CAF50"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- 草案页 -->
+                    <Grid x:Name="PageDrafts" Visibility="Collapsed">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="📝" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                            <TextBlock Text="草案功能开发中..." FontSize="14" Foreground="#8a9ba8" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 自动驾驶页 -->
+                    <Grid x:Name="PageAutopilot" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+                            <StackPanel>
+                                <!-- 控制栏 -->
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="启动自动驾驶" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Command="{Binding AutopilotVm.ToggleAutopilotCommand}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding AutopilotVm.IsRunning}" Value="True">
+                                                                <Setter Property="Content" Value="停止自动驾驶"/>
+                                                                <Setter Property="Background" Value="#F44336"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Content="立即唤醒" Background="#7C3AED" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.TriggerNowCommand}"/>
+                                            <Button Content="刷新状态" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.RefreshStatusCommand}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding AutopilotVm.StatusMessage}" FontSize="12" Foreground="#8a9ba8" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding AutopilotVm.LastError}" FontSize="12" Foreground="#F44336" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="{Binding AutopilotVm.LastError, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 状态卡片 -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,6,0">
+                                        <StackPanel>
+                                            <TextBlock Text="运行时长" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding AutopilotVm.ElapsedText}" FontSize="22" FontWeight="SemiBold" Foreground="#7C3AED"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="#263340" CornerRadius="8" Padding="16" Margin="3,0,3,0">
+                                        <StackPanel>
+                                            <TextBlock Text="上次唤醒" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding AutopilotVm.LastRunText}" FontSize="22" FontWeight="SemiBold" Foreground="White"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Background="#263340" CornerRadius="8" Padding="16" Margin="3,0,3,0">
+                                        <StackPanel>
+                                            <TextBlock Text="下次唤醒" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding AutopilotVm.NextRunText}" FontSize="22" FontWeight="SemiBold" Foreground="#667EEA"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="3" Background="#263340" CornerRadius="8" Padding="16" Margin="6,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="总任务数" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding AutopilotVm.TotalTasksScheduled}" FontSize="22" FontWeight="SemiBold" Foreground="#4CAF50"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- 目标卡片 -->
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                            <TextBlock Text="🎯 当前目标" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                                            <Button Content="编辑" Background="Transparent" Foreground="#667EEA" BorderThickness="0" FontSize="12" Padding="8,2" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.EditGoalCommand}"/>
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding AutopilotVm.IsGoalEditing, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBox Text="{Binding AutopilotVm.GoalTitle, UpdateSourceTrigger=PropertyChanged}" FontSize="13" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" Padding="8,6" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                                            <TextBox Text="{Binding AutopilotVm.GoalDescription, UpdateSourceTrigger=PropertyChanged}" FontSize="12" Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="8,6" Margin="0,0,0,8" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="保存" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,6" Cursor="Hand" Command="{Binding AutopilotVm.SaveGoalCommand}"/>
+                                                <Button Content="取消" Background="Transparent" Foreground="#8a9ba8" BorderThickness="0" FontSize="12" Padding="12,6" Cursor="Hand" Margin="8,0,0,0" Command="{Binding AutopilotVm.CancelEditGoalCommand}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding AutopilotVm.IsGoalEditing, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                            <TextBlock Text="{Binding AutopilotVm.GoalTitle}" FontSize="14" FontWeight="Medium" Foreground="White" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding AutopilotVm.GoalDescription}" FontSize="12" Foreground="#8a9ba8" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 白板 + 历史 分栏 -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- 白板 -->
+                                    <Border Grid.Column="0" Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,6,0">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                                                <TextBlock Text="📝 白板记忆" FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                                                <Button Content="保存" Background="Transparent" Foreground="#4CAF50" BorderThickness="0" FontSize="12" Padding="8,2" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.SaveWhiteboardCommand}"/>
+                                            </StackPanel>
+                                            <TextBox Text="{Binding AutopilotVm.WhiteboardContent, UpdateSourceTrigger=PropertyChanged}" FontSize="12" Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="12" Height="300" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- 编排历史 -->
+                                    <Border Grid.Column="1" Background="#263340" CornerRadius="8" Padding="16" Margin="6,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="📜 编排历史" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
+                                            <ListBox ItemsSource="{Binding AutopilotVm.Sessions}" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#1a2332" CornerRadius="6" Padding="10" Margin="0,4" Width="360">
+                                                            <StackPanel>
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding TriggeredAt}" FontSize="11" Foreground="#667EEA" FontFamily="Consolas, Microsoft YaHei"/>
+                                                                    <TextBlock Text="[" FontSize="11" Foreground="#8a9ba8" Margin="8,0,0,0"/>
+                                                                    <TextBlock Text="{Binding TasksScheduled}" FontSize="11" Foreground="#4CAF50"/>
+                                                                    <TextBlock Text=" tasks" FontSize="11" Foreground="#8a9ba8"/>
+                                                                    <TextBlock Text="]" FontSize="11" Foreground="#8a9ba8"/>
+                                                                </StackPanel>
+                                                                <TextBlock Text="{Binding DecisionSummary}" FontSize="12" Foreground="#e0e0e0" TextWrapping="Wrap" Margin="0,4,0,0" MaxHeight="60" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#8a9ba8" Margin="0,4,0,0">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="failed">
+                                                                                    <Setter Property="Foreground" Value="#F44336"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- 设置页 -->
+                    <Grid x:Name="PageSettings" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+                            <StackPanel>
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="关于 ClawPilot" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <TextBlock Text="🦞 ClawPilot — OpenClaw Desktop 控制工具" FontSize="13" Foreground="White" Margin="0,0,0,8"/>
+                                        <TextBlock Text="版本: 0.1.0" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                        <TextBlock Text="数据目录:" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding DataDirPath}" FontSize="12" Foreground="#667EEA" FontFamily="Consolas, Microsoft YaHei" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#263340" CornerRadius="8" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="统计信息" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock x:Name="StatPending" Text="--" FontSize="28" FontWeight="Light" Foreground="#FF9800" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="等待中" FontSize="11" Foreground="#8a9ba8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                                <TextBlock x:Name="StatRunning" Text="--" FontSize="28" FontWeight="Light" Foreground="#2196F3" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="执行中" FontSize="11" Foreground="#8a9ba8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                                <TextBlock x:Name="StatSuccess" Text="--" FontSize="28" FontWeight="Light" Foreground="#4CAF50" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="已完成" FontSize="11" Foreground="#8a9ba8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                                <TextBlock x:Name="StatFailed" Text="--" FontSize="28" FontWeight="Light" Foreground="#F44336" HorizontalAlignment="Center"/>
+                                                <TextBlock Text="已失败" FontSize="11" Foreground="#8a9ba8" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+
+    <Window.Resources>
+        <Style x:Key="NavButtonStyle" TargetType="RadioButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8a9ba8"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2a3a4a"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="#263340"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+</Window>

@@ -1,0 +1,75 @@
+## Build results
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+
+## Visual Studio Code
+.vscode/
+
+## Rider
+.idea/
+
+## NuGet
+*.nupkg
+**/[Pp]ackages/*
+project.nuget.cache
+project.assets.json
+
+## WPF temporary files
+*_wpftmp.csproj*
+
+## Windows
+Thumbs.db
+Desktop.ini
+
+## .NET
+*.dll
+*.pdb
+*.cache
+*.so
+
+## Runtime data
+*.db
+*.db-shm
+*.db-wal
+logs/
+_debug_logs/
+
+## User-specific
+*.rsuser
+*.suo
+*.user
+
+## Environment & secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pfx
+*.p12
+
+## OS generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# target
+target/
+
+# 
+.codebuddy/
+
+# issues
+issues/
