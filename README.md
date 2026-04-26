@@ -5,11 +5,12 @@
 ## 特性
 
 - **零依赖部署** — 单个 exe，开箱即用
+- **自动驾驶编排（Autopilot）** — LLM 定时唤醒，根据目标+白板记忆+执行结果自主决策任务；支持自适应间隔、空周期回退、编排历史可视化
 - **内嵌 SQLite** — 任务队列 + 编排数据库，本地存储
-- **OpenClaw 进程管理** — 直接管理 `openclaw agent` 进程
+- **OpenClaw 进程管理** — 直接管理 `openclaw agent` 进程；超时可配置，失败任务自动指数退避重试
 - **任务编排** — Persona / Prompt / DailyPlan / Draft 完整 CRUD
 - **草案审批** — 自动确认倒计时 + 手动确认/打回
-- **调试日志** — 支持 `--debug` / `--verbose` 启用 NDJSON 结构化日志，便于问题排查
+- **调试日志** — 支持 `--debug` / `--verbose` 启用 NDJSON 结构化日志，自动轮转与归档
 - **深色主题** — 现代化暗色 UI
 
 ## 架构
@@ -28,13 +29,16 @@ ClawPilot (单进程 C# WPF)
     ├── Models/ — 领域模型
     │   ├── TaskItem.cs
     │   ├── OrchestrationModels.cs (Persona/Prompt/Plan)
+    │   ├── AutopilotModels.cs — 自动驾驶决策模型 / 会话 / 白板
     │   ├── DraftModels.cs
     │   ├── OperationResult.cs — 操作结果封装
     │   └── Enums.cs
     │
     └── Services/ — 核心服务
-        ├── TaskQueueService.cs — 任务队列
+        ├── TaskQueueService.cs — 任务队列（含重试支持）
         ├── OrchestrationService.cs — 编排服务
+        ├── AutopilotOrchestrator.cs — LLM 定时编排器
+        ├── LlmDecisionEngine.cs — LLM 决策引擎（Prompt 构建 / JSON 解析）
         ├── OpenClawExecutor.cs — OpenClaw CLI 执行器
         ├── DaemonService.cs — 任务守护
         └── ProfileService.cs — Profile YAML 加载
@@ -83,6 +87,7 @@ dotnet publish src/ClawPilot.App -c Release -r win-x64 --self-contained -p:Publi
 |------|------|
 | 任务数据库 | `%APPDATA%\ClawPilot\tasks.db` |
 | 编排数据库 | `%APPDATA%\ClawPilot\orchestrator.db` |
+| 用户配置 | `%APPDATA%\ClawPilot\settings.json` — LLM Provider / 超时 / 编排间隔 |
 | Profile 目录 | `%APPDATA%\ClawPilot\profiles\` |
 | 日志文件 | `%APPDATA%\ClawPilot\logs\clawpilot.log` |
 | 调试日志（需 `--debug`） | `_debug_logs/debug-{yyyyMMdd}.ndjson`（相对项目根目录） |

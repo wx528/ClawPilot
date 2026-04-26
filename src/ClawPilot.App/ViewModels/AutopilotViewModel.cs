@@ -58,6 +58,13 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private bool _adaptiveIntervalEnabled = false;
 
+    public bool IsIntervalEditable => !AdaptiveIntervalEnabled;
+
+    partial void OnAdaptiveIntervalEnabledChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsIntervalEditable));
+    }
+
     public ObservableCollection<OrchestrationSession> Sessions { get; } = new();
 
     public AutopilotViewModel(
@@ -269,6 +276,12 @@ public partial class AutopilotViewModel : ObservableObject
             TotalSessions = status.TotalSessions;
             TotalTasksScheduled = status.TotalTasksScheduled;
             LastError = status.LastError ?? "";
+
+            // 自适应模式下，同步 orchestrator 的实际间隔值到 UI
+            if (_autopilot.AdaptiveIntervalEnabled)
+            {
+                IntervalMinutes = (int)_autopilot.Interval.TotalMinutes;
+            }
 
             if (!string.IsNullOrEmpty(LastError))
             {

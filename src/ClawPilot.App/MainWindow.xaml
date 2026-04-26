@@ -332,7 +332,7 @@
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
                                             <TextBlock Text="编排间隔" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <TextBox Text="{Binding AutopilotVm.IntervalMinutes, UpdateSourceTrigger=PropertyChanged}" Width="60" Padding="6,4" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" HorizontalContentAlignment="Center"/>
+                                            <TextBox Text="{Binding AutopilotVm.IntervalMinutes, UpdateSourceTrigger=PropertyChanged}" Width="60" Padding="6,4" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" HorizontalContentAlignment="Center" IsEnabled="{Binding AutopilotVm.IsIntervalEditable}"/>
                                             <TextBlock Text="分钟" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="4,0,8,0"/>
                                             <CheckBox Content="让编排者自主决定" IsChecked="{Binding AutopilotVm.AdaptiveIntervalEnabled}" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                             <Button Content="更新间隔" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="10,6" Cursor="Hand" Command="{Binding AutopilotVm.UpdateIntervalCommand}"/>
@@ -415,10 +415,14 @@
                                         </StackPanel>
                                     </Border>
                                     <!-- 编排历史 -->
-                                    <Border Grid.Column="1" Background="#263340" CornerRadius="8" Padding="16" Margin="6,0,0,0">
-                                        <StackPanel>
-                                            <TextBlock Text="📜 编排历史" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
-                                            <ListBox ItemsSource="{Binding AutopilotVm.Sessions}" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <Border Grid.Column="1" Background="#263340" CornerRadius="8" Padding="16" Margin="6,0,0,0" MaxHeight="420">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Text="📜 编排历史" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,8"/>
+                                            <ListBox Grid.Row="1" ItemsSource="{Binding AutopilotVm.Sessions}" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <Border Background="#1a2332" CornerRadius="6" Padding="10" Margin="0,4" Width="360">
@@ -430,7 +434,11 @@
                                                                     <TextBlock Text=" tasks" FontSize="11" Foreground="#8a9ba8"/>
                                                                     <TextBlock Text="]" FontSize="11" Foreground="#8a9ba8"/>
                                                                 </StackPanel>
-                                                                <TextBlock Text="{Binding DecisionSummary}" FontSize="12" Foreground="#e0e0e0" TextWrapping="Wrap" Margin="0,4,0,0" MaxHeight="60" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding DecisionSummary}" FontSize="12" Foreground="#e0e0e0" TextWrapping="Wrap" Margin="0,4,0,0" MaxHeight="60" TextTrimming="CharacterEllipsis">
+                                                                    <TextBlock.ToolTip>
+                                                                        <TextBlock Text="{Binding DecisionSummary}" TextWrapping="Wrap" MaxWidth="400" Foreground="Black"/>
+                                                                    </TextBlock.ToolTip>
+                                                                </TextBlock>
                                                                 <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#8a9ba8" Margin="0,4,0,0">
                                                                     <TextBlock.Style>
                                                                         <Style TargetType="TextBlock">
@@ -447,7 +455,7 @@
                                                     </DataTemplate>
                                                 </ListBox.ItemTemplate>
                                             </ListBox>
-                                        </StackPanel>
+                                        </Grid>
                                     </Border>
                                 </Grid>
                             </StackPanel>
