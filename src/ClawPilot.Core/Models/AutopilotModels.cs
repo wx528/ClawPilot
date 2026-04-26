@@ -54,6 +54,7 @@ public class AutopilotDecisionOutput
     public List<AutopilotTaskToAdd> TasksToAdd { get; set; } = [];
     public string WhiteboardUpdate { get; set; } = "";
     public string? FuturePrediction { get; set; }
+    public int? NextIntervalMinutes { get; set; }
 }
 
 /// <summary>

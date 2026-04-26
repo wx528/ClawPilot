@@ -19,7 +19,8 @@ public class AutopilotOrchestrator
     private DateTime? _startedAt;
     private DateTime? _lastRunAt;
     private DateTime? _nextRunAt;
-    private TimeSpan _interval = TimeSpan.FromHours(1);
+    public TimeSpan Interval { get; set; } = TimeSpan.FromHours(1);
+    public bool AdaptiveIntervalEnabled { get; set; } = false;
     private string? _lastError;
     private int _consecutiveEmptyCycles = 0;
 
@@ -50,7 +51,7 @@ public class AutopilotOrchestrator
         if (_isRunning) return Task.CompletedTask;
 
         if (interval.HasValue)
-            _interval = interval.Value;
+            Interval = interval.Value;
 
         _isRunning = true;
         _startedAt = DateTime.Now;
@@ -59,7 +60,7 @@ public class AutopilotOrchestrator
 
         _loopTask = Task.Run(() => RunLoopAsync(_cts.Token));
 
-        _logger?.LogInformation("自动驾驶编排器已启动，间隔: {Interval}", _interval);
+        _logger?.LogInformation("自动驾驶编排器已启动，间隔: {Interval}", Interval);
         return Task.CompletedTask;
     }
 
@@ -85,6 +86,19 @@ public class AutopilotOrchestrator
         }
     }
 
+    public async Task RestartAsync(TimeSpan interval)
+    {
+        if (_isRunning)
+        {
+            Stop();
+            if (_loopTask != null)
+            {
+                try { await _loopTask; } catch { /* ignore cancellation */ }
+            }
+        }
+        await StartAsync(interval);
+    }
+
     // ==================== 核心循环 ====================
 
     private async Task RunLoopAsync(CancellationToken ct)
@@ -99,8 +113,8 @@ public class AutopilotOrchestrator
         {
             try
             {
-                _nextRunAt = DateTime.Now + _interval;
-                var delay = _interval;
+                _nextRunAt = DateTime.Now + Interval;
+                var delay = Interval;
 
                 _logger?.LogInformation("下次编排时间: {NextRunAt}", _nextRunAt);
                 await Task.Delay(delay, ct);
@@ -165,7 +179,7 @@ public class AutopilotOrchestrator
 
             // 4. 调用 LLM 决策
             var elapsed = ElapsedSinceStart;
-            var nextWake = DateTime.Now + _interval;
+            var nextWake = DateTime.Now + Interval;
 
             var decision = await _llmEngine.DecideAutopilotAsync(
                 goal, whiteboard, recentResults, elapsed, nextWake, ct);
@@ -241,7 +255,26 @@ public class AutopilotOrchestrator
                 _logger?.LogInformation("白板已更新至版本 {Version}", updatedWhiteboard.Version);
             }
 
-            // 8. 记录会话完成
+            // 9. 自适应间隔
+            if (AdaptiveIntervalEnabled && decision.NextIntervalMinutes.HasValue)
+            {
+                var suggested = decision.NextIntervalMinutes.Value;
+                if (suggested >= 5 && suggested <= 1440)
+                {
+                    var newInterval = TimeSpan.FromMinutes(suggested);
+                    if (newInterval != Interval)
+                    {
+                        Interval = newInterval;
+                        _logger?.LogInformation("LLM 建议调整编排间隔为 {Minutes} 分钟", suggested);
+                    }
+                }
+                else
+                {
+                    _logger?.LogWarning("LLM 建议的间隔 {Minutes} 超出有效范围(5-1440)，已忽略", suggested);
+                }
+            }
+
+            // 10. 记录会话完成
             var rawJson = System.Text.Json.JsonSerializer.Serialize(decision, new System.Text.Json.JsonSerializerOptions
             {
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower

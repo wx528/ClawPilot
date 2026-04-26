@@ -379,8 +379,15 @@ You must return a JSON object with this exact structure:
     }
   ],
   ""whiteboard_update"": ""更新后的总体笔记和进度总结"",
-  ""future_prediction"": ""对未来1-3个周期的预测和规划思路（可选）""
+  ""future_prediction"": ""对未来1-3个周期的预测和规划思路（可选）"",
+  ""next_interval_minutes"": 45
 }
+
+ADAPTIVE INTERVAL (if enabled by system):
+- You may suggest the next wake-up interval in minutes by returning next_interval_minutes.
+- If previous tasks completed much earlier than the interval, suggest a shorter interval to maintain momentum.
+- If tasks took most of the interval or there were pending/running tasks at wake-up, suggest a longer interval to avoid overlap.
+- Value must be between 5 and 1440 minutes. Omit the field if no adjustment is needed.
 
 Rules:
 - If no tasks should be added, return an empty tasks_to_add array ONLY when the mission goal is fully achieved.
@@ -420,7 +427,15 @@ Rules:
                 {
                     sb.AppendLine($"  Output: {Truncate(task.Output, 200)}");
                 }
-                sb.AppendLine($"  Time: {task.CreatedAt:HH:mm:ss}");
+                var duration = task.UpdatedAt - task.CreatedAt;
+                if (duration.TotalSeconds > 0 && (task.Status == Models.TaskStatus.Success || task.Status == Models.TaskStatus.Failed))
+                {
+                    sb.AppendLine($"  Duration: {duration.TotalMinutes:F0}min | Start: {task.CreatedAt:HH:mm} | End: {task.UpdatedAt:HH:mm}");
+                }
+                else
+                {
+                    sb.AppendLine($"  Time: {task.CreatedAt:HH:mm:ss}");
+                }
             }
             sb.AppendLine();
         }
@@ -462,7 +477,8 @@ Rules:
                     })
                     .ToList() ?? new List<AutopilotTaskToAdd>(),
                 WhiteboardUpdate = output.WhiteboardUpdate ?? "",
-                FuturePrediction = output.FuturePrediction
+                FuturePrediction = output.FuturePrediction,
+                NextIntervalMinutes = output.NextIntervalMinutes
             };
         }
         catch (Exception ex)
@@ -493,6 +509,8 @@ Rules:
         public string? WhiteboardUpdate { get; set; }
         [JsonPropertyName("future_prediction")]
         public string? FuturePrediction { get; set; }
+        [JsonPropertyName("next_interval_minutes")]
+        public int? NextIntervalMinutes { get; set; }
     }
 
     private class AutopilotLlmTaskToAdd

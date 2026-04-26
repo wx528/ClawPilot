@@ -330,6 +330,13 @@
                                             <Button Content="立即唤醒" Background="#7C3AED" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.TriggerNowCommand}"/>
                                             <Button Content="刷新状态" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.RefreshStatusCommand}"/>
                                         </StackPanel>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                                            <TextBlock Text="编排间隔" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBox Text="{Binding AutopilotVm.IntervalMinutes, UpdateSourceTrigger=PropertyChanged}" Width="60" Padding="6,4" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" HorizontalContentAlignment="Center"/>
+                                            <TextBlock Text="分钟" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="4,0,8,0"/>
+                                            <CheckBox Content="让编排者自主决定" IsChecked="{Binding AutopilotVm.AdaptiveIntervalEnabled}" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <Button Content="更新间隔" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="10,6" Cursor="Hand" Command="{Binding AutopilotVm.UpdateIntervalCommand}"/>
+                                        </StackPanel>
                                         <TextBlock Text="{Binding AutopilotVm.StatusMessage}" FontSize="12" Foreground="#8a9ba8" Margin="0,12,0,0" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding AutopilotVm.LastError}" FontSize="12" Foreground="#F44336" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="{Binding AutopilotVm.LastError, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
                                     </StackPanel>

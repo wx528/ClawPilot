@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 
 namespace ClawPilot.App.ViewModels;
@@ -51,6 +52,12 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private bool _isGoalEditing;
 
+    [ObservableProperty]
+    private int _intervalMinutes = 60;
+
+    [ObservableProperty]
+    private bool _adaptiveIntervalEnabled = false;
+
     public ObservableCollection<OrchestrationSession> Sessions { get; } = new();
 
     public AutopilotViewModel(
@@ -73,6 +80,7 @@ public partial class AutopilotViewModel : ObservableObject
             await LoadWhiteboardAsync();
             await RefreshSessionsAsync();
             await RefreshStatusAsync();
+            await LoadIntervalAsync();
 
             // 启动 UI 刷新定时器
             _statusTimer = new System.Windows.Threading.DispatcherTimer
@@ -189,6 +197,40 @@ public partial class AutopilotViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task UpdateInterval()
+    {
+        try
+        {
+            LlmSettings settings;
+            if (File.Exists(App.SettingsPath))
+            {
+                var json = await File.ReadAllTextAsync(App.SettingsPath);
+                settings = System.Text.Json.JsonSerializer.Deserialize<LlmSettings>(json) ?? new LlmSettings();
+            }
+            else
+            {
+                settings = new LlmSettings();
+            }
+            settings.AutopilotIntervalMinutes = IntervalMinutes;
+            settings.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
+            var newJson = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(App.SettingsPath, newJson);
+
+            _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
+            var newInterval = TimeSpan.FromMinutes(IntervalMinutes);
+            await _autopilot.RestartAsync(newInterval);
+
+            await RefreshStatusAsync();
+            MessageBox.Show($"编排间隔已更新为 {IntervalMinutes} 分钟，已立即生效。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "更新编排间隔失败");
+            MessageBox.Show($"更新失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
     private async Task RefreshStatus()
     {
         await RefreshStatusAsync();
@@ -220,7 +262,10 @@ public partial class AutopilotViewModel : ObservableObject
             ElapsedText = FormatElapsed(status.ElapsedSinceStart);
             LastRunText = status.LastRunAt?.ToString("HH:mm:ss") ?? "--";
             NextRunText = status.NextRunAt?.ToString("HH:mm:ss") ?? "--";
-            GoalTitle = status.CurrentGoal;
+            if (!IsGoalEditing)
+            {
+                GoalTitle = status.CurrentGoal;
+            }
             TotalSessions = status.TotalSessions;
             TotalTasksScheduled = status.TotalTasksScheduled;
             LastError = status.LastError ?? "";
@@ -276,6 +321,32 @@ public partial class AutopilotViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger?.LogError(ex, "刷新会话列表失败");
+        }
+    }
+
+    private async Task LoadIntervalAsync()
+    {
+        try
+        {
+            if (File.Exists(App.SettingsPath))
+            {
+                var json = await File.ReadAllTextAsync(App.SettingsPath);
+                var settings = System.Text.Json.JsonSerializer.Deserialize<LlmSettings>(json);
+                if (settings != null)
+                {
+                    if (settings.AutopilotIntervalMinutes > 0)
+                    {
+                        IntervalMinutes = settings.AutopilotIntervalMinutes;
+                        _autopilot.Interval = TimeSpan.FromMinutes(IntervalMinutes);
+                    }
+                    AdaptiveIntervalEnabled = settings.AdaptiveIntervalEnabled;
+                    _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "加载编排间隔失败");
         }
     }
 

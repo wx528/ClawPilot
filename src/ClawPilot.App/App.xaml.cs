@@ -356,5 +356,7 @@ namespace ClawPilot.App
         public string BaseUrl { get; set; } = "https://api.deepseek.com";
         public string Model { get; set; } = "deepseek-chat";
         public int OpenClawTimeoutSeconds { get; set; } = 600;
+        public int AutopilotIntervalMinutes { get; set; } = 60;
+        public bool AdaptiveIntervalEnabled { get; set; } = false;
     }
 }
