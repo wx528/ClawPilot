@@ -3,6 +3,7 @@ using ClawPilot.App.ViewModels;
 using ClawPilot.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
@@ -13,14 +14,62 @@ namespace ClawPilot.App
 {
     public partial class App : System.Windows.Application
     {
-        // 数据目录
-        public static string DataDir { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClawPilot");
+        // 数据目录 — 混合模式：检测便携标记或本地 Data 目录，无权限则回退到 AppData
+        public static string DataDir { get; }
 
-        public static string TasksDbPath { get; } = Path.Combine(DataDir, "tasks.db");
-        public static string OrchestratorDbPath { get; } = Path.Combine(DataDir, "orchestrator.db");
-        public static string ProfilesDir { get; } = Path.Combine(DataDir, "profiles");
-        public static string SettingsPath { get; } = Path.Combine(DataDir, "settings.json");
+        public static string TasksDbPath { get; }
+        public static string OrchestratorDbPath { get; }
+        public static string ProfilesDir { get; }
+        public static string SettingsPath { get; }
+
+        static App()
+        {
+            DataDir = ResolveDataDir();
+            TasksDbPath = Path.Combine(DataDir, "tasks.db");
+            OrchestratorDbPath = Path.Combine(DataDir, "orchestrator.db");
+            ProfilesDir = Path.Combine(DataDir, "profiles");
+            SettingsPath = Path.Combine(DataDir, "settings.json");
+        }
+
+        private static string ResolveDataDir()
+        {
+            try
+            {
+                var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    var exeDir = Path.GetDirectoryName(exePath)!;
+                    var portableMarker = Path.Combine(exeDir, "portable");
+                    var localDataDir = Path.Combine(exeDir, "Data");
+
+                    // 存在 portable 标记，或已有本地 Data 目录，则尝试本地模式
+                    if (File.Exists(portableMarker) || Directory.Exists(portableMarker) || Directory.Exists(localDataDir))
+                    {
+                        try
+                        {
+                            Directory.CreateDirectory(localDataDir);
+                            // 测试写入权限
+                            var testFile = Path.Combine(localDataDir, ".write_test");
+                            File.WriteAllText(testFile, "");
+                            File.Delete(testFile);
+                            return localDataDir;
+                        }
+                        catch
+                        {
+                            // 本地目录无写入权限，回退到 AppData
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // 任何异常都回退到 AppData
+            }
+
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ClawPilot");
+        }
 
         // 依赖注入服务容器
         public static ServiceProvider ServiceProvider { get; private set; } = null!;
