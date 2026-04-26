@@ -20,7 +20,7 @@ public class OpenClawExecutor
         _logger = logger;
     }
 
-    public async Task<(string Status, string Output)> ExecuteAsync(string agentName, string message, int timeoutSeconds, CancellationToken ct)
+    public async Task<(string Status, string Output, string Stderr, int ExitCode)> ExecuteAsync(string agentName, string message, int timeoutSeconds, CancellationToken ct)
     {
         _logger?.LogInformation("调用 OpenClaw: {AgentName} - {Message}", agentName, message);
 
@@ -85,16 +85,16 @@ public class OpenClawExecutor
             if (process.ExitCode == 0)
             {
                 _logger?.LogInformation("OpenClaw 成功调用，耗时 {Ms}ms", stopwatch.ElapsedMilliseconds);
-                return ("success", output);
+                return ("success", output, error, 0);
             }
 
             _logger?.LogError("OpenClaw 执行失败，ExitCode: {Code}", process.ExitCode);
-            return ("failed", $"ExitCode: {process.ExitCode}" + Environment.NewLine + output);
+            return ("failed", $"ExitCode: {process.ExitCode}" + Environment.NewLine + output, error, process.ExitCode);
         }
         catch (OperationCanceledException)
         {
             _logger?.LogError("OpenClaw 调用超时");
-            return ("timeout", $"Timeout after {timeoutSeconds} seconds");
+            return ("timeout", $"Timeout after {timeoutSeconds} seconds", "", -1);
         }
         catch (Exception ex)
         {
@@ -104,7 +104,7 @@ public class OpenClawExecutor
                 errorMsg += $", Win32ErrorCode: {win32Ex.NativeErrorCode}";
             if (ex.InnerException != null)
                 errorMsg += $", Inner: {ex.InnerException.Message}";
-            return ("error", errorMsg);
+            return ("error", errorMsg, "", -1);
         }
     }
 }

@@ -15,6 +15,7 @@ public class TaskItem : INotifyPropertyChanged
     private TaskType _taskType = TaskType.OpenClaw;
     private TaskSource _source = TaskSource.User;
     private string _output = "";
+    private int _retryCount = 0;
     private DateTime _createdAt = DateTime.Now;
     private DateTime _updatedAt = DateTime.Now;
 
@@ -58,6 +59,12 @@ public class TaskItem : INotifyPropertyChanged
     {
         get => _output;
         set { _output = value ?? ""; OnPropertyChanged(); }
+    }
+
+    public int RetryCount
+    {
+        get => _retryCount;
+        set { _retryCount = value; OnPropertyChanged(); }
     }
 
     public DateTime CreatedAt

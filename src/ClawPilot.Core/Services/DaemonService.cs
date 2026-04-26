@@ -27,6 +27,9 @@ public class DaemonService
     public int StatsSucceeded { get; private set; }
     public int StatsFailed { get; private set; }
 
+    // 连续空闲轮询计数（用于轮询间隔 backoff）
+    private int _consecutiveIdleCycles = 0;
+
     // 当前任务信息
     public Dictionary<string, string> CurrentTaskInfo { get; private set; } = new();
 
@@ -54,12 +57,17 @@ public class DaemonService
     /// <summary>
     /// 执行超时（秒）
     /// </summary>
-    public int ExecutorTimeoutSeconds { get; set; } = 300;
+    public int ExecutorTimeoutSeconds { get; set; } = 600;
 
     /// <summary>
     /// 最大并行执行数
     /// </summary>
     public int MaxConcurrency { get; set; } = 3;
+
+    /// <summary>
+    /// 最大重试次数
+    /// </summary>
+    public int MaxRetries { get; set; } = 3;
 
     public DaemonService(TaskQueueService taskQueue, OpenClawExecutor executor, ILogger? logger = null)
     {
@@ -106,11 +114,19 @@ public class DaemonService
                 var hasWork = await DispatchAsync(ct);
                 if (!hasWork)
                 {
-                    await Task.Delay(PollIntervalSeconds * 1000, ct);
+                    _consecutiveIdleCycles++;
+                    var delayMs = _consecutiveIdleCycles switch
+                    {
+                        <= 2 => PollIntervalSeconds * 1000,
+                        <= 5 => 15000,
+                        _ => 30000
+                    };
+                    await Task.Delay(delayMs, ct);
                 }
                 // 有任务时稍微等一下再取下一批，避免瞬间取出太多
                 else
                 {
+                    _consecutiveIdleCycles = 0;
                     await Task.Delay(500, ct);
                 }
             }
@@ -144,17 +160,17 @@ public class DaemonService
         // 非阻塞检查：如果并发数已满，直接返回 false（等待下一轮轮询）
         if (_concurrencyLimiter == null || !_concurrencyLimiter.Wait(0))
         {
-            _logger?.LogDebug("并发限制器已满，跳过本轮调度");
+            _logger?.LogTrace("并发限制器已满，跳过本轮调度");
             return false;
         }
 
-        _logger?.LogDebug("尝试获取下一个待处理任务");
+        _logger?.LogTrace("尝试获取下一个待处理任务");
         var task = await _taskQueue.GetNextPendingAsync();
         if (task == null)
         {
             // 没有任务，释放信号量
             _concurrencyLimiter.Release();
-            _logger?.LogDebug("没有待处理任务");
+            _logger?.LogTrace("没有待处理任务");
             return false;
         }
 
@@ -189,9 +205,11 @@ public class DaemonService
             // 执行
             ClawPilot.Core.Models.TaskStatus status;
             string output;
+            string stderr = "";
+            int exitCode = 0;
             if (task.TaskType == ClawPilot.Core.Models.TaskType.OpenClaw)
             {
-                (var statusStr, output) = await _executor.ExecuteAsync(
+                (var statusStr, output, stderr, exitCode) = await _executor.ExecuteAsync(
                     task.AgentName, task.Message, ExecutorTimeoutSeconds, ct);
                 
                 status = statusStr == "success" ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
@@ -202,16 +220,28 @@ public class DaemonService
                 output = $"不支持的任务类型: {task.TaskType}";
             }
 
-            // 回报结果
-            await _taskQueue.ReportResultAsync(task.Id, status, output);
-            _logger?.LogInformation("任务 {TaskId} 处理完毕，结果: {Status}", task.Id, status);
-
-            // 记录历史
-            RecordHistory(task, status, output);
-
-            StatsProcessed++;
-            if (status == ClawPilot.Core.Models.TaskStatus.Success) StatsSucceeded++;
-            else StatsFailed++;
+            // 处理结果
+            if (status == ClawPilot.Core.Models.TaskStatus.Success)
+            {
+                await _taskQueue.ReportResultAsync(task.Id, status, output);
+                _logger?.LogInformation("任务 {TaskId} 处理完毕，结果: {Status}", task.Id, status);
+                RecordHistory(task, status, output);
+                StatsProcessed++;
+                StatsSucceeded++;
+            }
+            else if (task.RetryCount < MaxRetries)
+            {
+                _logger?.LogError("任务 {TaskId} 失败，Status: {Status}, ExitCode: {ExitCode}, Stderr: {Stderr}", task.Id, status, exitCode, stderr);
+                ScheduleRetry(task, output);
+            }
+            else
+            {
+                _logger?.LogError("任务 {TaskId} 失败且重试次数耗尽，Status: {Status}, ExitCode: {ExitCode}, Stderr: {Stderr}", task.Id, status, exitCode, stderr);
+                await _taskQueue.ReportResultAsync(task.Id, status, output);
+                RecordHistory(task, status, output);
+                StatsProcessed++;
+                StatsFailed++;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -221,8 +251,15 @@ public class DaemonService
         catch (Exception ex)
         {
             _logger?.LogError(ex, "任务 {TaskId} 执行异常", task.Id);
-            await _taskQueue.ReportResultAsync(task.Id, ClawPilot.Core.Models.TaskStatus.Failed, ex.Message);
-            StatsFailed++;
+            if (task.RetryCount < MaxRetries)
+            {
+                ScheduleRetry(task, ex.Message);
+            }
+            else
+            {
+                await _taskQueue.ReportResultAsync(task.Id, ClawPilot.Core.Models.TaskStatus.Failed, ex.Message);
+                StatsFailed++;
+            }
         }
         finally
         {
@@ -233,6 +270,17 @@ public class DaemonService
             // 释放信号量，允许下一个任务执行
             _concurrencyLimiter?.Release();
         }
+    }
+
+    private void ScheduleRetry(TaskItem task, string output)
+    {
+        var delay = Math.Min(30000, (int)Math.Pow(2, task.RetryCount) * 1000);
+        _logger?.LogInformation("任务 {TaskId} 失败，安排 {Delay}ms 后重试（{RetryCount}/{MaxRetries}）", task.Id, delay, task.RetryCount + 1, MaxRetries);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(delay);
+            await _taskQueue.ScheduleRetryAsync(task.Id, output + $"\n[Retry #{task.RetryCount + 1} after {delay}ms]");
+        });
     }
 
     private void RecordHistory(TaskItem task, ClawPilot.Core.Models.TaskStatus status, string output)
@@ -281,7 +329,7 @@ public class DaemonService
         string output;
         if (task.TaskType == ClawPilot.Core.Models.TaskType.OpenClaw)
         {
-            (var statusStr, output) = await _executor.ExecuteAsync(
+            (var statusStr, output, _, _) = await _executor.ExecuteAsync(
                 task.AgentName, task.Message, ExecutorTimeoutSeconds, ct);
             
             status = statusStr == "success" ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;

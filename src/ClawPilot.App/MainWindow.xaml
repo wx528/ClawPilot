@@ -453,6 +453,33 @@
                             <StackPanel>
                                 <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                                     <StackPanel>
+                                        <TextBlock Text="LLM Provider 配置" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="API Key" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding LlmApiKey, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Base URL" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding LlmBaseUrl, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Model" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding LlmModel, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="超时(秒)" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding OpenClawTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
+                                        </Grid>
+                                        <TextBlock Text="配置保存在本地 settings.json 中，重启后生效。" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,8"/>
+                                        <Button Content="保存配置" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Command="{Binding SaveLlmSettingsCommand}" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
                                         <TextBlock Text="关于 ClawPilot" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
                                         <TextBlock Text="🦞 ClawPilot — OpenClaw Desktop 控制工具" FontSize="13" Foreground="White" Margin="0,0,0,8"/>
                                         <TextBlock Text="版本: 0.1.0" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>

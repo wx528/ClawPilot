@@ -14,6 +14,8 @@ public class NdJsonFileLoggerProvider : ILoggerProvider
     private readonly string _logDirectory;
     private readonly LogLevel _minLevel;
     private readonly object _lock = new();
+    private readonly int _maxFileSizeBytes;
+    private readonly int _archiveAfterDays;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -22,23 +24,65 @@ public class NdJsonFileLoggerProvider : ILoggerProvider
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
-    public NdJsonFileLoggerProvider(string logDirectory, LogLevel minLevel = LogLevel.Debug)
+    public NdJsonFileLoggerProvider(string logDirectory, LogLevel minLevel = LogLevel.Debug, int maxFileSizeBytes = 10485760, int archiveAfterDays = 7)
     {
         _logDirectory = logDirectory;
         _minLevel = minLevel;
+        _maxFileSizeBytes = maxFileSizeBytes;
+        _archiveAfterDays = archiveAfterDays;
 
         if (!Directory.Exists(_logDirectory))
             Directory.CreateDirectory(_logDirectory);
+
+        _ = Task.Run(ArchiveOldLogsAsync);
     }
 
     public ILogger CreateLogger(string categoryName)
     {
-        return new NdJsonFileLogger(categoryName, _logDirectory, _minLevel, _lock);
+        return new NdJsonFileLogger(categoryName, _logDirectory, _minLevel, _lock, _maxFileSizeBytes);
     }
 
     public void Dispose()
     {
         // 不需要释放资源
+    }
+
+    private async Task ArchiveOldLogsAsync()
+    {
+        try
+        {
+            var files = Directory.GetFiles(_logDirectory, "debug-*.ndjson");
+            var cutoff = DateTime.Now.AddDays(-_archiveAfterDays);
+
+            foreach (var file in files)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(file);
+                // 解析日期: debug-YYYYMMDD 或 debug-YYYYMMDD.N
+                var datePart = fileName.Split('.')[0];
+                if (datePart.Length < 12) continue;
+
+                var dateStr = datePart.Substring(6);
+                if (!DateTime.TryParseExact(dateStr, "yyyyMMdd", null, System.Globalization.DateTimeStyles.None, out var fileDate))
+                    continue;
+
+                if (fileDate >= cutoff)
+                    continue;
+
+                var gzPath = file + ".gz";
+                using (var src = File.OpenRead(file))
+                using (var dst = File.Create(gzPath))
+                using (var gz = new System.IO.Compression.GZipStream(dst, System.IO.Compression.CompressionLevel.Optimal))
+                {
+                    await src.CopyToAsync(gz);
+                }
+
+                File.Delete(file);
+            }
+        }
+        catch
+        {
+            // 归档失败时静默忽略，避免日志系统自身崩溃
+        }
     }
 
     private class NdJsonFileLogger : ILogger
@@ -47,18 +91,47 @@ public class NdJsonFileLoggerProvider : ILoggerProvider
         private readonly string _logDirectory;
         private readonly LogLevel _minLevel;
         private readonly object _lock;
+        private readonly int _maxFileSizeBytes;
 
-        public NdJsonFileLogger(string categoryName, string logDirectory, LogLevel minLevel, object lockObj)
+        public NdJsonFileLogger(string categoryName, string logDirectory, LogLevel minLevel, object lockObj, int maxFileSizeBytes)
         {
             _categoryName = categoryName;
             _logDirectory = logDirectory;
             _minLevel = minLevel;
             _lock = lockObj;
+            _maxFileSizeBytes = maxFileSizeBytes;
         }
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
         public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLevel;
+
+        private string ResolveLogFilePath()
+        {
+            var date = DateTime.Now.ToString("yyyyMMdd");
+            var basePath = Path.Combine(_logDirectory, $"debug-{date}.ndjson");
+
+            if (!File.Exists(basePath))
+                return basePath;
+
+            var info = new FileInfo(basePath);
+            if (info.Length < _maxFileSizeBytes)
+                return basePath;
+
+            int index = 1;
+            while (true)
+            {
+                var shardPath = Path.Combine(_logDirectory, $"debug-{date}.{index}.ndjson");
+                if (!File.Exists(shardPath))
+                    return shardPath;
+
+                var shardInfo = new FileInfo(shardPath);
+                if (shardInfo.Length < _maxFileSizeBytes)
+                    return shardPath;
+
+                index++;
+            }
+        }
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
@@ -78,8 +151,7 @@ public class NdJsonFileLoggerProvider : ILoggerProvider
                 Exception = exception != null ? new ExceptionInfo(exception) : null
             };
 
-            var fileName = $"debug-{DateTime.Now:yyyyMMdd}.ndjson";
-            var filePath = Path.Combine(_logDirectory, fileName);
+            var filePath = ResolveLogFilePath();
 
             try
             {

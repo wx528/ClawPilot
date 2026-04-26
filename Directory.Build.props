@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- 从项目根目录 VERSION 文件读取版本号，作为唯一版本源 -->
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)VERSION').Trim())</Version>
+    <AssemblyVersion>$(Version).0</AssemblyVersion>
+    <FileVersion>$(Version).0</FileVersion>
+  </PropertyGroup>
+</Project>

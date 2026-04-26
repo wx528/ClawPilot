@@ -63,6 +63,7 @@ public class TaskQueueService
                 // 自动补全缺失的列
                 await EnsureColumnAsync(conn, "task_type", "TEXT DEFAULT 'openclaw'");
                 await EnsureColumnAsync(conn, "source", "TEXT DEFAULT 'user'");
+                await EnsureColumnAsync(conn, "retry_count", "INTEGER DEFAULT 0");
             }
 
             return true;
@@ -478,6 +479,20 @@ public class TaskQueueService
         var successCount = await DeleteTasksAsync(status: TaskStatus.Success);
         var failedCount = await DeleteTasksAsync(status: TaskStatus.Failed);
         return successCount + failedCount;
+    }
+
+    /// <summary>
+    /// 安排任务重试：将状态重置为 pending 并递增 retry_count
+    /// </summary>
+    public async Task<bool> ScheduleRetryAsync(int taskId, string output)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE tasks SET status = 'pending', retry_count = retry_count + 1, output = @output, updated_at = CURRENT_TIMESTAMP WHERE id = @id";
+        cmd.Parameters.AddWithValue("@output", output);
+        cmd.Parameters.AddWithValue("@id", taskId);
+        return await cmd.ExecuteNonQueryAsync() > 0;
     }
 
     // ==================== 辅助方法 ====================

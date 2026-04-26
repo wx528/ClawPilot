@@ -340,6 +340,11 @@ CRITICAL TIME AWARENESS:
 - You should NOT repeat tasks that were just completed unless there is a clear reason.
 - You should adapt your strategy based on how much time has passed.
 
+PERSISTENCE DIRECTIVE:
+- This mission is LONG-RUNNING and CONTINUOUS. You must NEVER return an empty tasks_to_add array unless the goal is EXPLICITLY and FULLY completed.
+- If you are unsure what to do next, schedule a monitoring, reconnaissance, or progress-check task rather than doing nothing.
+- Returning 0 tasks is ONLY acceptable when you can definitively state that the mission goal has been achieved. When in doubt, keep working.
+
 WHITEBOARD RULES:
 - The whiteboard is YOUR persistent memory across wake-up cycles.
 - Update it with a concise but comprehensive summary of:
@@ -358,6 +363,7 @@ TASK SCHEDULING RULES:
 - Do NOT schedule more than 5 tasks per cycle unless absolutely necessary.
 - If the previous tasks are still running or pending, consider waiting.
 - If there were failures, decide whether to retry or adjust approach.
+- If the previous cycle returned 0 tasks, this is a WARNING SIGN. You should strongly consider adding at least one task to maintain momentum.
 
 You must return a JSON object with this exact structure:
 {
@@ -377,7 +383,7 @@ You must return a JSON object with this exact structure:
 }
 
 Rules:
-- If no tasks should be added, return an empty tasks_to_add array.
+- If no tasks should be added, return an empty tasks_to_add array ONLY when the mission goal is fully achieved.
 - The whiteboard_update should be a complete replacement of the previous whiteboard, not a diff.
 - Do not include markdown formatting, only raw JSON.";
     }

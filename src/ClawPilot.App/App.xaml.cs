@@ -156,10 +156,16 @@ namespace ClawPilot.App
             services.AddSingleton(sp => new OrchestrationService(
                 sp.GetRequiredService<TaskQueueService>(),
                 sp.GetService<ILogger<OrchestrationService>>()));
-            services.AddSingleton(sp => new DaemonService(
-                sp.GetRequiredService<TaskQueueService>(),
-                sp.GetRequiredService<OpenClawExecutor>(),
-                sp.GetService<ILogger<DaemonService>>()));
+            services.AddSingleton(sp =>
+            {
+                var daemon = new DaemonService(
+                    sp.GetRequiredService<TaskQueueService>(),
+                    sp.GetRequiredService<OpenClawExecutor>(),
+                    sp.GetService<ILogger<DaemonService>>());
+                var settings = LoadLlmSettings();
+                daemon.ExecutorTimeoutSeconds = settings.OpenClawTimeoutSeconds;
+                return daemon;
+            });
             services.AddSingleton<ProfileService>();
 
             // 自动驾驶服务
@@ -349,5 +355,6 @@ namespace ClawPilot.App
         public string ApiKey { get; set; } = "";
         public string BaseUrl { get; set; } = "https://api.deepseek.com";
         public string Model { get; set; } = "deepseek-chat";
+        public int OpenClawTimeoutSeconds { get; set; } = 600;
     }
 }

@@ -21,6 +21,9 @@ public class AutopilotOrchestrator
     private DateTime? _nextRunAt;
     private TimeSpan _interval = TimeSpan.FromHours(1);
     private string? _lastError;
+    private int _consecutiveEmptyCycles = 0;
+
+    public int EmptyCycleThreshold { get; set; } = 3;
 
     public bool IsRunning => _isRunning;
     public DateTime? LastRunAt => _lastRunAt;
@@ -199,14 +202,46 @@ public class AutopilotOrchestrator
                 }
             }
 
-            // 6. 更新白板
+            // 6. 空周期检测与回退
+            if (scheduledCount == 0)
+            {
+                _consecutiveEmptyCycles++;
+                _logger?.LogWarning("编排周期安排 0 个任务，连续空周期: {Count}", _consecutiveEmptyCycles);
+            }
+            else
+            {
+                _consecutiveEmptyCycles = 0;
+            }
+
+            if (_consecutiveEmptyCycles >= EmptyCycleThreshold)
+            {
+                _logger?.LogError("连续 {Threshold} 个周期安排 0 个任务，触发默认回退行为", EmptyCycleThreshold);
+                _lastError = $"已连续 {EmptyCycleThreshold} 个周期无任务，已触发默认回退任务";
+
+                var fallbackResult = await _taskQueue.AddTaskAsync(
+                    message: $"Mission checkpoint: Review the goal '{goal.Title}' and whiteboard. Identify at least one actionable next step or sub-goal to maintain progress.",
+                    agentName: "main",
+                    taskType: TaskType.OpenClaw,
+                    source: TaskSource.Orchestrator);
+
+                if (fallbackResult.Success)
+                {
+                    scheduledCount = 1;
+                    taskIds.Add(fallbackResult.TaskId!.Value);
+                    _logger?.LogInformation("默认回退任务已安排，ID: {TaskId}", fallbackResult.TaskId);
+                }
+
+                _consecutiveEmptyCycles = 0;
+            }
+
+            // 7. 更新白板
             if (!string.IsNullOrWhiteSpace(decision.WhiteboardUpdate))
             {
                 var updatedWhiteboard = await _storage.UpdateWhiteboardAsync(decision.WhiteboardUpdate);
                 _logger?.LogInformation("白板已更新至版本 {Version}", updatedWhiteboard.Version);
             }
 
-            // 7. 记录会话完成
+            // 8. 记录会话完成
             var rawJson = System.Text.Json.JsonSerializer.Serialize(decision, new System.Text.Json.JsonSerializerOptions
             {
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower

@@ -50,6 +50,18 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _message = "";
 
+    [ObservableProperty]
+    private string _llmApiKey = "";
+
+    [ObservableProperty]
+    private string _llmBaseUrl = "";
+
+    [ObservableProperty]
+    private string _llmModel = "";
+
+    [ObservableProperty]
+    private int _openClawTimeoutSeconds = 600;
+
     public ObservableCollection<TaskItem> TaskItems { get; } = new();
     public AutopilotViewModel AutopilotVm { get; }
 
@@ -72,7 +84,31 @@ public partial class MainViewModel : ObservableObject
         IsOrchestratorRunning = _orchestrator.IsRunning;
         DataDirPath = App.DataDir;
 
+        LoadLlmSettings();
         _ = LoadData();
+    }
+
+    private void LoadLlmSettings()
+    {
+        try
+        {
+            if (File.Exists(App.SettingsPath))
+            {
+                var json = File.ReadAllText(App.SettingsPath);
+                var settings = System.Text.Json.JsonSerializer.Deserialize<LlmSettings>(json);
+                if (settings != null)
+                {
+                    LlmApiKey = settings.ApiKey ?? "";
+                    LlmBaseUrl = settings.BaseUrl ?? "";
+                    LlmModel = settings.Model ?? "";
+                    OpenClawTimeoutSeconds = settings.OpenClawTimeoutSeconds > 0 ? settings.OpenClawTimeoutSeconds : 600;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "加载 LLM 设置失败");
+        }
     }
 
     [RelayCommand]
@@ -417,5 +453,34 @@ public partial class MainViewModel : ObservableObject
     public async Task ShowQueueInfoDialog()
     {
         await ShowQueueInfo();
+    }
+
+    [RelayCommand]
+    private void SaveLlmSettings()
+    {
+        try
+        {
+            var settings = new LlmSettings
+            {
+                ApiKey = LlmApiKey,
+                BaseUrl = LlmBaseUrl,
+                Model = LlmModel,
+                OpenClawTimeoutSeconds = OpenClawTimeoutSeconds
+            };
+
+            var json = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            File.WriteAllText(App.SettingsPath, json);
+            _daemon.ExecutorTimeoutSeconds = OpenClawTimeoutSeconds;
+            MessageBox.Show("配置已保存。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "保存 LLM 设置失败");
+            MessageBox.Show($"保存配置失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 }

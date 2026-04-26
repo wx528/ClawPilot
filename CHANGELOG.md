@@ -14,22 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 #### 1. 日志降噪与分级
-- [ ] 将 Daemon 高频轮询日志（"没有待处理任务"等）从 `Debug` 降级为 `Trace`。
-- [ ] 并发限制器满时，Daemon 轮询间隔从 5s 延长至 30s，减少无效调度噪音。
-- [ ] 增加日志自动轮转 / gzip 归档历史文件机制（单天 47MB+ 不可持续）。
+- [x] 将 Daemon 高频轮询日志（"没有待处理任务"等）从 `Debug` 降级为 `Trace`。
+- [x] 并发限制器满时，Daemon 轮询间隔从 5s 延长至 30s，减少无效调度噪音。
+- [x] 增加日志自动轮转 / gzip 归档历史文件机制（单天 47MB+ 不可持续）。
 
 #### 2. 任务执行可靠性
-- [ ] 增加 OpenClaw 调用超时配置项（当前超时过短导致高频超时失败）。
-- [ ] 结构化捕获并记录 OpenClaw `stderr`，定位 `ExitCode: 1` 根因。
-- [ ] 失败任务支持指数退避重试（当前直接标记 `Failed`，丢失恢复机会）。
+- [x] 增加 OpenClaw 调用超时配置项（当前超时过短导致高频超时失败）。
+- [x] 结构化捕获并记录 OpenClaw `stderr`，定位 `ExitCode: 1` 根因。
+- [x] 失败任务支持指数退避重试（当前直接标记 `Failed`，丢失恢复机会）。
 
 #### 3. 编排策略优化
-- [ ] 防止 LLM "做完就停" 的保守决策：目标增加持续性指令或空编排提醒机制。
-- [ ] 连续 N 个周期安排 0 任务时，触发系统通知或回退默认行为。
+- [x] 防止 LLM "做完就停" 的保守决策：目标增加持续性指令或空编排提醒机制。
+- [x] 连续 N 个周期安排 0 任务时，触发系统通知或回退默认行为。
 
 #### 4. 配置管理基础
-- [ ] LLM Provider 配置 UI（API Key / Base URL / Model），区分开发配置与分发配置。
-- [ ] 明确 `VERSION` 文件与 `.csproj` 的同步策略。
+- [x] LLM Provider 配置 UI（API Key / Base URL / Model），区分开发配置与分发配置。
+- [x] 明确 `VERSION` 文件与 `.csproj` 的同步策略。
 
 ## [0.1.0] - 2026-04-25
 
