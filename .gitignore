@@ -1,6 +1,7 @@
 ## Build results
 bin/
 obj/
+publish/
 [Dd]ebug/
 [Rr]elease/
 x64/

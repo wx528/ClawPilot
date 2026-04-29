@@ -85,16 +85,16 @@ dotnet publish src/ClawPilot.App -c Release -r win-x64 --self-contained -p:Publi
 
 | 数据 | 路径 |
 |------|------|
-| 任务数据库 | `%APPDATA%\ClawPilot\tasks.db` |
-| 编排数据库 | `%APPDATA%\ClawPilot\orchestrator.db` |
-| 用户配置 | `%APPDATA%\ClawPilot\settings.json` — LLM Provider / 超时 / 并发数 / 编排间隔 |
-| Profile 目录 | `%APPDATA%\ClawPilot\profiles\` |
-| 日志文件 | `%APPDATA%\ClawPilot\logs\clawpilot.log` |
+| 任务数据库 | `%USERPROFILE%\.clawpilot\tasks.db` |
+| 编排数据库 | `%USERPROFILE%\.clawpilot\orchestrator.db` |
+| 用户配置 | `%USERPROFILE%\.clawpilot\settings.json` — LLM Provider / 超时 / 并发数 / 编排间隔 |
+| Profile 目录 | `%USERPROFILE%\.clawpilot\profiles\` |
+| 日志文件 | `%USERPROFILE%\.clawpilot\logs\clawpilot.log` |
 | 调试日志（需 `--debug`） | `_debug_logs/debug-{yyyyMMdd}.ndjson`（相对项目根目录） |
 
 ## 配置说明
 
-`profiles/` 目录包含示例编排配置，实际使用时请复制到 `%APPDATA%\ClawPilot\profiles\` 并按需调整。
+`profiles/` 目录包含示例编排配置，实际使用时请复制到 `%USERPROFILE%\.clawpilot\profiles\` 并按需调整。
 
 `example-schedule.yaml` 提供了一份每日任务编排的参考模板，展示如何定义 Persona、Prompt 和 DailyPlan。
 

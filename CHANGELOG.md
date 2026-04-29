@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-04-30
+
+### Changed
+- **数据存储路径** — 从 `%APPDATA%\ClawPilot` 改为 `%USERPROFILE%\.clawpilot`，更符合开发者工具惯例（类似 `.ssh`、`.codebuddy`）
+- **自动数据迁移** — 首次启动自动将旧数据迁移到新目录，迁移失败时优雅回退
+
+### Fixed
+- **.gitignore** — 添加 `publish/` 目录，避免发布产物误提交
+
 ## [0.2.1] - 2026-04-30
 
 ### Added

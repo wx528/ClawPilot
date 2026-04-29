@@ -66,9 +66,30 @@ namespace ClawPilot.App
                 // 任何异常都回退到 AppData
             }
 
-            return Path.Combine(
+            // 优先使用用户目录下的 .clawpilot（开发者工具惯例）
+            var userProfileDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".clawpilot");
+
+            // 自动迁移：如果旧路径存在且新路径不存在
+            var legacyAppDataDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "ClawPilot");
+
+            if (Directory.Exists(legacyAppDataDir) && !Directory.Exists(userProfileDir))
+            {
+                try
+                {
+                    Directory.Move(legacyAppDataDir, userProfileDir);
+                }
+                catch
+                {
+                    // 迁移失败，继续使用旧路径
+                    return legacyAppDataDir;
+                }
+            }
+
+            return userProfileDir;
         }
 
         // 依赖注入服务容器
