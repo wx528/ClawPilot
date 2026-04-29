@@ -21,6 +21,7 @@ public class AutopilotOrchestrator
     private DateTime? _nextRunAt;
     public TimeSpan Interval { get; set; } = TimeSpan.FromHours(1);
     public bool AdaptiveIntervalEnabled { get; set; } = false;
+    public string AgentName { get; set; } = "main";
     private string? _lastError;
     private int _consecutiveEmptyCycles = 0;
 
@@ -200,7 +201,7 @@ public class AutopilotOrchestrator
                 var priority = ParsePriority(task.Priority);
                 var result = await _taskQueue.AddTaskAsync(
                     message: task.Message,
-                    agentName: task.PersonaName,
+                    agentName: AgentName,
                     taskType: TaskType.OpenClaw,
                     source: TaskSource.Orchestrator);
 
@@ -208,7 +209,7 @@ public class AutopilotOrchestrator
                 {
                     scheduledCount++;
                     taskIds.Add(result.TaskId!.Value);
-                    _logger?.LogInformation("任务入队成功: {Agent} - {Message}", task.PersonaName, Truncate(task.Message, 60));
+                    _logger?.LogInformation("任务入队成功: {Agent} - {Message}", AgentName, Truncate(task.Message, 60));
                 }
                 else
                 {
@@ -234,7 +235,7 @@ public class AutopilotOrchestrator
 
                 var fallbackResult = await _taskQueue.AddTaskAsync(
                     message: $"Mission checkpoint: Review the goal '{goal.Title}' and whiteboard. Identify at least one actionable next step or sub-goal to maintain progress.",
-                    agentName: "main",
+                    agentName: AgentName,
                     taskType: TaskType.OpenClaw,
                     source: TaskSource.Orchestrator);
 

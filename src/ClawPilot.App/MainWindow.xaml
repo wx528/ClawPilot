@@ -4,11 +4,12 @@
         Title="ClawPilot — OpenClaw Desktop" 
         Width="960" Height="600"
         WindowStyle="None" AllowsTransparency="True"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Background="Transparent"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        StateChanged="Window_StateChanged">
 
-    <Border CornerRadius="8" Background="#FF1E1E2E" BorderBrush="#40FFFFFF" BorderThickness="1">
+    <Border x:Name="WindowBorder" CornerRadius="8" Background="#FF1E1E2E" BorderBrush="#40FFFFFF" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="36"/>
@@ -16,7 +17,7 @@
             </Grid.RowDefinitions>
 
             <!-- 标题栏 -->
-            <Border Grid.Row="0" Background="#FF1a1a2e" CornerRadius="8,8,0,0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Border x:Name="TitleBarBorder" Grid.Row="0" Background="#FF1a1a2e" CornerRadius="8,8,0,0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid Margin="12,0">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="🦞 ClawPilot" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
@@ -62,6 +63,10 @@
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+                        <Button Content="—" Background="Transparent" Foreground="#8a9ba8" BorderThickness="0" 
+                                FontSize="14" Padding="8,4" Cursor="Hand" Click="Minimize_Click"/>
+                        <Button x:Name="MaximizeBtn" Content="□" Background="Transparent" Foreground="#8a9ba8" BorderThickness="0" 
+                                FontSize="12" Padding="8,4" Cursor="Hand" Click="Maximize_Click"/>
                         <Button Content="✕" Background="Transparent" Foreground="#8a9ba8" BorderThickness="0" 
                                 FontSize="14" Padding="8,4" Cursor="Hand" Click="Close_Click"/>
                     </StackPanel>
@@ -335,7 +340,12 @@
                                             <TextBox Text="{Binding AutopilotVm.IntervalMinutes, UpdateSourceTrigger=PropertyChanged}" Width="60" Padding="6,4" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" HorizontalContentAlignment="Center" IsEnabled="{Binding AutopilotVm.IsIntervalEditable}"/>
                                             <TextBlock Text="分钟" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="4,0,8,0"/>
                                             <CheckBox Content="让编排者自主决定" IsChecked="{Binding AutopilotVm.AdaptiveIntervalEnabled}" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <Button Content="更新间隔" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="10,6" Cursor="Hand" Command="{Binding AutopilotVm.UpdateIntervalCommand}"/>
+                                            <Button Content="更新配置" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="10,6" Cursor="Hand" Command="{Binding AutopilotVm.UpdateIntervalCommand}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                                            <TextBlock Text="执行者" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBox Text="{Binding AutopilotVm.AgentName, UpdateSourceTrigger=PropertyChanged}" Width="120" Padding="6,4" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
+                                            <TextBlock Text="编排产生的任务将使用此执行者名称" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                         </StackPanel>
                                         <TextBlock Text="{Binding AutopilotVm.StatusMessage}" FontSize="12" Foreground="#8a9ba8" Margin="0,12,0,0" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding AutopilotVm.LastError}" FontSize="12" Foreground="#F44336" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="{Binding AutopilotVm.LastError, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
@@ -489,7 +499,12 @@
                                             <TextBlock Text="超时(秒)" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
                                             <TextBox Text="{Binding OpenClawTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
                                         </Grid>
-                                        <TextBlock Text="配置保存在本地 settings.json 中，重启后生效。" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,8"/>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="并发数" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding DaemonMaxConcurrency, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Padding="8,6" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
+                                        </Grid>
+                                        <TextBlock Text="配置保存在本地 settings.json 中，并发数保存后立即生效。" FontSize="11" Foreground="#8a9ba8" Margin="0,0,0,8"/>
                                         <Button Content="保存配置" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Command="{Binding SaveLlmSettingsCommand}" HorizontalAlignment="Left"/>
                                     </StackPanel>
                                 </Border>
@@ -497,7 +512,7 @@
                                     <StackPanel>
                                         <TextBlock Text="关于 ClawPilot" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
                                         <TextBlock Text="🦞 ClawPilot — OpenClaw Desktop 控制工具" FontSize="13" Foreground="White" Margin="0,0,0,8"/>
-                                        <TextBlock Text="版本: 0.1.0" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
+                                        <TextBlock Text="版本: 0.2.1" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
                                         <TextBlock Text="数据目录:" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
                                         <TextBlock Text="{Binding DataDirPath}" FontSize="12" Foreground="#667EEA" FontFamily="Consolas, Microsoft YaHei" TextWrapping="Wrap"/>
                                     </StackPanel>

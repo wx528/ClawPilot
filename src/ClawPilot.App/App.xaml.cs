@@ -164,6 +164,7 @@ namespace ClawPilot.App
                     sp.GetService<ILogger<DaemonService>>());
                 var settings = LoadLlmSettings();
                 daemon.ExecutorTimeoutSeconds = settings.OpenClawTimeoutSeconds;
+                daemon.MaxConcurrency = settings.DaemonMaxConcurrency;
                 return daemon;
             });
             services.AddSingleton<ProfileService>();
@@ -314,7 +315,8 @@ namespace ClawPilot.App
             {
                 ApiKey = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_API_KEY") ?? "",
                 BaseUrl = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_BASE_URL") ?? "https://api.deepseek.com",
-                Model = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_MODEL") ?? "deepseek-chat"
+                Model = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_MODEL") ?? "deepseek-chat",
+                DaemonMaxConcurrency = 1
             };
         }
 
@@ -358,5 +360,7 @@ namespace ClawPilot.App
         public int OpenClawTimeoutSeconds { get; set; } = 600;
         public int AutopilotIntervalMinutes { get; set; } = 60;
         public bool AdaptiveIntervalEnabled { get; set; } = false;
+        public string AutopilotAgentName { get; set; } = "main";
+        public int DaemonMaxConcurrency { get; set; } = 1;
     }
 }

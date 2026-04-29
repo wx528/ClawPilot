@@ -59,8 +59,33 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _llmModel = "";
 
-    [ObservableProperty]
+    // Note: _openClawTimeoutSeconds and _daemonMaxConcurrency are implemented manually
+    // with validation logic, so they don't use [ObservableProperty] attribute
     private int _openClawTimeoutSeconds = 600;
+
+    public int OpenClawTimeoutSeconds
+    {
+        get => _openClawTimeoutSeconds;
+        set
+        {
+            if (value < 10) value = 10;
+            if (value > 36000) value = 36000;
+            SetProperty(ref _openClawTimeoutSeconds, value);
+        }
+    }
+
+    private int _daemonMaxConcurrency = 1;
+
+    public int DaemonMaxConcurrency
+    {
+        get => _daemonMaxConcurrency;
+        set
+        {
+            if (value < 1) value = 1;
+            if (value > 100) value = 100;
+            SetProperty(ref _daemonMaxConcurrency, value);
+        }
+    }
 
     public ObservableCollection<TaskItem> TaskItems { get; } = new();
     public AutopilotViewModel AutopilotVm { get; }
@@ -102,6 +127,7 @@ public partial class MainViewModel : ObservableObject
                     LlmBaseUrl = settings.BaseUrl ?? "";
                     LlmModel = settings.Model ?? "";
                     OpenClawTimeoutSeconds = settings.OpenClawTimeoutSeconds > 0 ? settings.OpenClawTimeoutSeconds : 600;
+                    DaemonMaxConcurrency = settings.DaemonMaxConcurrency > 0 ? settings.DaemonMaxConcurrency : 1;
                 }
             }
         }
@@ -465,7 +491,8 @@ public partial class MainViewModel : ObservableObject
                 ApiKey = LlmApiKey,
                 BaseUrl = LlmBaseUrl,
                 Model = LlmModel,
-                OpenClawTimeoutSeconds = OpenClawTimeoutSeconds
+                OpenClawTimeoutSeconds = OpenClawTimeoutSeconds,
+                DaemonMaxConcurrency = DaemonMaxConcurrency
             };
 
             var json = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions
@@ -475,6 +502,7 @@ public partial class MainViewModel : ObservableObject
 
             File.WriteAllText(App.SettingsPath, json);
             _daemon.ExecutorTimeoutSeconds = OpenClawTimeoutSeconds;
+            _daemon.UpdateConcurrency(DaemonMaxConcurrency);
             MessageBox.Show("配置已保存。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)

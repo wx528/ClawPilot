@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-30
+
+### Added
+
+#### Daemon 并发控制
+- **并发数配置支持** — 设置页新增"并发数"输入框，可配置 Daemon 同时执行的任务数量，默认值为 1（串行执行）。
+- **运行时动态更新** — 保存并发配置后立即生效，无需重启应用。
+- **`settings.json` 持久化** — 新增 `DaemonMaxConcurrency` 字段，程序启动时自动加载。
+- **状态栏实时显示** — Daemon 运行时状态栏显示当前活跃任务数量。
+
+### Changed
+- Daemon 默认并发数从 3 改为 1，确保任务串行执行，避免资源竞争。
+
+### Fixed
+- **并发数动态更新** — 修复 `DaemonService.UpdateConcurrency` 方法，Daemon 运行时修改并发数立即生效（之前只更新属性值，未更新 SemaphoreSlim）。
+- **默认值缺失** — 修复 `App.xaml.cs` 中 `LoadLlmSettings` 默认设置缺少 `DaemonMaxConcurrency` 字段导致的并发数为 0 问题。
+- **输入验证** — 在 `MainViewModel` 中添加并发数和超时值的范围验证（并发数 1-100，超时 10-36000 秒）。
+
 ## [0.2.0] - 2026-04-27
 
 ### Added

@@ -58,6 +58,9 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private bool _adaptiveIntervalEnabled = false;
 
+    [ObservableProperty]
+    private string _agentName = "main";
+
     public bool IsIntervalEditable => !AdaptiveIntervalEnabled;
 
     partial void OnAdaptiveIntervalEnabledChanged(bool value)
@@ -220,19 +223,21 @@ public partial class AutopilotViewModel : ObservableObject
             }
             settings.AutopilotIntervalMinutes = IntervalMinutes;
             settings.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
+            settings.AutopilotAgentName = AgentName;
             var newJson = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(App.SettingsPath, newJson);
 
             _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
+            _autopilot.AgentName = AgentName;
             var newInterval = TimeSpan.FromMinutes(IntervalMinutes);
             await _autopilot.RestartAsync(newInterval);
 
             await RefreshStatusAsync();
-            MessageBox.Show($"编排间隔已更新为 {IntervalMinutes} 分钟，已立即生效。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show($"编排配置已更新，已立即生效。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "更新编排间隔失败");
+            _logger?.LogError(ex, "更新编排配置失败");
             MessageBox.Show($"更新失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -354,12 +359,14 @@ public partial class AutopilotViewModel : ObservableObject
                     }
                     AdaptiveIntervalEnabled = settings.AdaptiveIntervalEnabled;
                     _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
+                    AgentName = settings.AutopilotAgentName ?? "main";
+                    _autopilot.AgentName = AgentName;
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "加载编排间隔失败");
+            _logger?.LogError(ex, "加载编排配置失败");
         }
     }
 

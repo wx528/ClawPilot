@@ -87,7 +87,7 @@ dotnet publish src/ClawPilot.App -c Release -r win-x64 --self-contained -p:Publi
 |------|------|
 | 任务数据库 | `%APPDATA%\ClawPilot\tasks.db` |
 | 编排数据库 | `%APPDATA%\ClawPilot\orchestrator.db` |
-| 用户配置 | `%APPDATA%\ClawPilot\settings.json` — LLM Provider / 超时 / 编排间隔 |
+| 用户配置 | `%APPDATA%\ClawPilot\settings.json` — LLM Provider / 超时 / 并发数 / 编排间隔 |
 | Profile 目录 | `%APPDATA%\ClawPilot\profiles\` |
 | 日志文件 | `%APPDATA%\ClawPilot\logs\clawpilot.log` |
 | 调试日志（需 `--debug`） | `_debug_logs/debug-{yyyyMMdd}.ndjson`（相对项目根目录） |

@@ -28,8 +28,15 @@ public class OpenClawExecutor
 
         try
         {
+            // 对消息进行转义：将换行符替换为特殊标记，避免命令行截断
+            // 注意：OpenClaw 端需要配合将 \n 标记还原为换行符
+            var escapedMessage = message
+                .Replace("\r\n", "\\n")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\n");
+            
             // 使用 cmd.exe /C 执行，确保能找到 PATH 中的 .cmd / .bat 脚本
-            var cliArgs = $"agent --agent \"{agentName}\" --message \"{message}\"";
+            var cliArgs = $"agent --agent \"{agentName}\" --message \"{escapedMessage}\"";
             var arguments = $"/C {_cliCommand} {cliArgs}";
             _logger?.LogDebug("启动 OpenClaw 进程: cmd.exe {Args}", arguments);
             

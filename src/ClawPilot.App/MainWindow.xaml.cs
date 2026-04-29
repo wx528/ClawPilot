@@ -95,6 +95,66 @@ namespace ClawPilot.App
         }
 
         /// <summary>
+        /// 双击标题栏切换最大化/还原
+        /// </summary>
+        private void TitleBar_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            ToggleMaximize();
+        }
+
+        /// <summary>
+        /// 窗口状态改变时调整圆角
+        /// </summary>
+        private void Window_StateChanged(object sender, EventArgs e)
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                // 最大化时移除圆角，避免边缘显示问题
+                WindowBorder.CornerRadius = new CornerRadius(0);
+                TitleBarBorder.CornerRadius = new CornerRadius(0);
+                MaximizeBtn.Content = "❐";
+            }
+            else
+            {
+                // 还原时恢复圆角
+                WindowBorder.CornerRadius = new CornerRadius(8);
+                TitleBarBorder.CornerRadius = new CornerRadius(8, 8, 0, 0);
+                MaximizeBtn.Content = "□";
+            }
+        }
+
+        /// <summary>
+        /// 最小化按钮
+        /// </summary>
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        /// <summary>
+        /// 最大化/还原按钮
+        /// </summary>
+        private void Maximize_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleMaximize();
+        }
+
+        /// <summary>
+        /// 切换最大化/还原状态
+        /// </summary>
+        private void ToggleMaximize()
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+            }
+            else
+            {
+                WindowState = WindowState.Maximized;
+            }
+        }
+
+        /// <summary>
         /// 关闭按钮 → 最小化到系统托盘（Daemon 继续运行）
         /// </summary>
         private void Close_Click(object sender, RoutedEventArgs e)

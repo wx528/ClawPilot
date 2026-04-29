@@ -62,7 +62,28 @@ public class DaemonService
     /// <summary>
     /// 最大并行执行数
     /// </summary>
-    public int MaxConcurrency { get; set; } = 3;
+    public int MaxConcurrency { get; set; } = 1;
+
+    /// <summary>
+    /// 动态更新并发数（Daemon 运行时也可立即生效）
+    /// </summary>
+    public void UpdateConcurrency(int newMaxConcurrency)
+    {
+        if (newMaxConcurrency < 1) newMaxConcurrency = 1;
+        
+        MaxConcurrency = newMaxConcurrency;
+        
+        // 如果 Daemon 正在运行，重新创建并发限制器
+        if (_isRunning && _concurrencyLimiter != null)
+        {
+            // 释放旧的限制器
+            _concurrencyLimiter.Dispose();
+            // 创建新的限制器
+            _concurrencyLimiter = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
+        }
+        
+        _logger?.LogInformation("Daemon 最大并发数已更新为: {MaxConc}", MaxConcurrency);
+    }
 
     /// <summary>
     /// 最大重试次数
