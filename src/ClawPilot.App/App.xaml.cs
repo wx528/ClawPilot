@@ -179,11 +179,15 @@ namespace ClawPilot.App
                 sp.GetService<ILogger<OrchestrationService>>()));
             services.AddSingleton(sp =>
             {
+                var settings = LoadLlmSettings();
+                var hermesExecutor = new HermesExecutor(
+                    sp.GetService<ILogger<HermesExecutor>>(),
+                    settings.HermesCommandPath);
                 var daemon = new DaemonService(
                     sp.GetRequiredService<TaskQueueService>(),
                     sp.GetRequiredService<OpenClawExecutor>(),
+                    hermesExecutor,
                     sp.GetService<ILogger<DaemonService>>());
-                var settings = LoadLlmSettings();
                 daemon.ExecutorTimeoutSeconds = settings.OpenClawTimeoutSeconds;
                 daemon.MaxConcurrency = settings.DaemonMaxConcurrency;
                 return daemon;
@@ -373,6 +377,12 @@ namespace ClawPilot.App
         }
     }
 
+    public enum ExecutorType
+    {
+        OpenClaw,
+        Hermes
+    }
+
     public class LlmSettings
     {
         public string ApiKey { get; set; } = "";
@@ -383,5 +393,7 @@ namespace ClawPilot.App
         public bool AdaptiveIntervalEnabled { get; set; } = false;
         public string AutopilotAgentName { get; set; } = "main";
         public int DaemonMaxConcurrency { get; set; } = 1;
+        public ExecutorType ExecutorType { get; set; } = ExecutorType.OpenClaw;
+        public string HermesCommandPath { get; set; } = @"D:\agents\hermes-agent\hermes.ps1";
     }
 }

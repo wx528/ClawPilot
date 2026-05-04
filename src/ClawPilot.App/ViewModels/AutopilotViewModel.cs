@@ -61,6 +61,9 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private string _agentName = "main";
 
+    [ObservableProperty]
+    private int _selectedExecutorType;
+
     public bool IsIntervalEditable => !AdaptiveIntervalEnabled;
 
     partial void OnAdaptiveIntervalEnabledChanged(bool value)
@@ -224,11 +227,13 @@ public partial class AutopilotViewModel : ObservableObject
             settings.AutopilotIntervalMinutes = IntervalMinutes;
             settings.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
             settings.AutopilotAgentName = AgentName;
+            settings.ExecutorType = (ExecutorType)SelectedExecutorType;
             var newJson = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(App.SettingsPath, newJson);
 
             _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
             _autopilot.AgentName = AgentName;
+            _autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)SelectedExecutorType;
             var newInterval = TimeSpan.FromMinutes(IntervalMinutes);
             await _autopilot.RestartAsync(newInterval);
 

@@ -22,6 +22,7 @@ public class AutopilotOrchestrator
     public TimeSpan Interval { get; set; } = TimeSpan.FromHours(1);
     public bool AdaptiveIntervalEnabled { get; set; } = false;
     public string AgentName { get; set; } = "main";
+    public ExecutorType ExecutorType { get; set; } = ExecutorType.OpenClaw;
     private string? _lastError;
     private int _consecutiveEmptyCycles = 0;
 
@@ -199,10 +200,11 @@ public class AutopilotOrchestrator
             foreach (var task in decision.TasksToAdd)
             {
                 var priority = ParsePriority(task.Priority);
+                var taskType = ExecutorType == ExecutorType.Hermes ? TaskType.Hermes : TaskType.OpenClaw;
                 var result = await _taskQueue.AddTaskAsync(
                     message: task.Message,
                     agentName: AgentName,
-                    taskType: TaskType.OpenClaw,
+                    taskType: taskType,
                     source: TaskSource.Orchestrator);
 
                 if (result.Success)
@@ -233,10 +235,11 @@ public class AutopilotOrchestrator
                 _logger?.LogError("连续 {Threshold} 个周期安排 0 个任务，触发默认回退行为", EmptyCycleThreshold);
                 _lastError = $"已连续 {EmptyCycleThreshold} 个周期无任务，已触发默认回退任务";
 
+                var fallbackTaskType = ExecutorType == ExecutorType.Hermes ? TaskType.Hermes : TaskType.OpenClaw;
                 var fallbackResult = await _taskQueue.AddTaskAsync(
                     message: $"Mission checkpoint: Review the goal '{goal.Title}' and whiteboard. Identify at least one actionable next step or sub-goal to maintain progress.",
                     agentName: AgentName,
-                    taskType: TaskType.OpenClaw,
+                    taskType: fallbackTaskType,
                     source: TaskSource.Orchestrator);
 
                 if (fallbackResult.Success)

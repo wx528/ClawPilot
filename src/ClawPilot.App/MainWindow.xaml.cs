@@ -32,6 +32,9 @@ namespace ClawPilot.App
         {
             UpdateTaskDetailVisibility();
 
+            // 注册执行器类型选择事件
+            ExecutorTypeCombo.SelectionChanged += ExecutorTypeCombo_SelectionChanged;
+
             // 自动刷新定时器
             _refreshTimer = new System.Windows.Threading.DispatcherTimer
             {
@@ -39,6 +42,22 @@ namespace ClawPilot.App
             };
             _refreshTimer.Tick += async (s, e) => await ViewModel.Refresh();
             _refreshTimer.Start();
+        }
+
+        private void ExecutorTypeCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (ExecutorTypeCombo.SelectedIndex == 1) // Hermes
+            {
+                AgentNamePanel.Visibility = Visibility.Collapsed;
+                HermesAgentHint.Visibility = Visibility.Visible;
+                OpenClawAgentHint.Visibility = Visibility.Collapsed;
+            }
+            else // OpenClaw
+            {
+                AgentNamePanel.Visibility = Visibility.Visible;
+                HermesAgentHint.Visibility = Visibility.Collapsed;
+                OpenClawAgentHint.Visibility = Visibility.Visible;
+            }
         }
 
         #region 导航

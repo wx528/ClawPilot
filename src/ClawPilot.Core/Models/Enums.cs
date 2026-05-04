@@ -17,7 +17,8 @@ public enum TaskStatus
 public enum TaskType
 {
     OpenClaw,
-    LangGraph
+    LangGraph,
+    Hermes
 }
 
 /// <summary>
@@ -40,7 +41,13 @@ public enum TaskPriority
     Low,
     Normal,
     High,
-    Urgent
+    Urgent,
+}
+
+public enum ExecutorType
+{
+    OpenClaw,
+    Hermes,
 }
 
 /// <summary>

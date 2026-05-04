@@ -10,7 +10,8 @@ namespace ClawPilot.Core.Services;
 public class DaemonService
 {
     private readonly TaskQueueService _taskQueue;
-    private readonly OpenClawExecutor _executor;
+    private readonly OpenClawExecutor _openClawExecutor;
+    private readonly HermesExecutor _hermesExecutor;
     private readonly ILogger? _logger;
 
     private CancellationTokenSource? _cts;
@@ -90,10 +91,11 @@ public class DaemonService
     /// </summary>
     public int MaxRetries { get; set; } = 3;
 
-    public DaemonService(TaskQueueService taskQueue, OpenClawExecutor executor, ILogger? logger = null)
+    public DaemonService(TaskQueueService taskQueue, OpenClawExecutor openClawExecutor, HermesExecutor hermesExecutor, ILogger? logger = null)
     {
         _taskQueue = taskQueue;
-        _executor = executor;
+        _openClawExecutor = openClawExecutor;
+        _hermesExecutor = hermesExecutor;
         _logger = logger;
     }
 
@@ -230,10 +232,18 @@ public class DaemonService
             int exitCode = 0;
             if (task.TaskType == ClawPilot.Core.Models.TaskType.OpenClaw)
             {
-                (var statusStr, output, stderr, exitCode) = await _executor.ExecuteAsync(
+                (var statusStr, output, stderr, exitCode) = await _openClawExecutor.ExecuteAsync(
                     task.AgentName, task.Message, ExecutorTimeoutSeconds, ct);
                 
                 status = statusStr == "success" ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.Hermes)
+            {
+                (var success, output, stderr) = await _hermesExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+                exitCode = success ? 0 : 1;
             }
             else
             {
@@ -350,10 +360,17 @@ public class DaemonService
         string output;
         if (task.TaskType == ClawPilot.Core.Models.TaskType.OpenClaw)
         {
-            (var statusStr, output, _, _) = await _executor.ExecuteAsync(
+            (var statusStr, output, _, _) = await _openClawExecutor.ExecuteAsync(
                 task.AgentName, task.Message, ExecutorTimeoutSeconds, ct);
             
             status = statusStr == "success" ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+        }
+        else if (task.TaskType == ClawPilot.Core.Models.TaskType.Hermes)
+        {
+            (var success, output, _) = await _hermesExecutor.ExecuteAsync(
+                task.Message, ExecutorTimeoutSeconds);
+            
+            status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
         }
         else
         {

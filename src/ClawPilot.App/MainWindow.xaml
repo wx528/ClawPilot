@@ -248,8 +248,8 @@
                                             <TextBox x:Name="AddMessageInput" Text="{Binding Message, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" FontSize="13" Grid.Column="1" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1" AcceptsReturn="True" Height="60" TextWrapping="Wrap"/></Grid>
                                         <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="类型" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
-                                            <ComboBox x:Name="AddTypeInput" Grid.Column="1" Padding="8,6" FontSize="13" SelectedIndex="0" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a">
-                                                <ComboBoxItem Content="openclaw"/><ComboBoxItem Content="langgraph"/></ComboBox></Grid>
+                                            <ComboBox x:Name="AddTypeInput" Grid.Column="1" Padding="8,6" FontSize="13" SelectedIndex="0" Style="{StaticResource DarkComboBoxStyle}">
+                                                <ComboBoxItem Content="openclaw"/><ComboBoxItem Content="langgraph"/><ComboBoxItem Content="hermes"/></ComboBox></Grid>
                                         <Button Content="添加任务" Background="#667EEA" Foreground="White" BorderThickness="0" FontSize="12" Padding="16,8" Cursor="Hand" Command="{Binding AddTaskCommand}" Margin="0,8,0,0" HorizontalAlignment="Left"/>
                                         <TextBlock x:Name="AddResultText" Text="" FontSize="12" Foreground="#8a9ba8" Margin="0,8,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
@@ -343,9 +343,17 @@
                                             <Button Content="更新配置" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="10,6" Cursor="Hand" Command="{Binding AutopilotVm.UpdateIntervalCommand}"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
-                                            <TextBlock Text="执行者" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock Text="执行器类型" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <ComboBox x:Name="ExecutorTypeCombo" SelectedIndex="{Binding AutopilotVm.SelectedExecutorType, UpdateSourceTrigger=PropertyChanged}" Width="120" Padding="6,4" FontSize="13" Style="{StaticResource DarkComboBoxStyle}">
+                                                <ComboBoxItem Content="OpenClaw"/>
+                                                <ComboBoxItem Content="Hermes"/>
+                                            </ComboBox>
+                                            <TextBlock x:Name="HermesAgentHint" Text="(本地 Hermes Agent，无需指定代理)" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed"/>
+                                            <TextBlock x:Name="OpenClawAgentHint" Text="编排产生的任务将使用此执行者名称" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="AgentNamePanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                                            <TextBlock Text="代理名称" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                             <TextBox Text="{Binding AutopilotVm.AgentName, UpdateSourceTrigger=PropertyChanged}" Width="120" Padding="6,4" FontSize="13" FontFamily="Consolas, Microsoft YaHei" Background="#1a2332" Foreground="White" BorderBrush="#1e2d3a" BorderThickness="1"/>
-                                            <TextBlock Text="编排产生的任务将使用此执行者名称" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                         </StackPanel>
                                         <TextBlock Text="{Binding AutopilotVm.StatusMessage}" FontSize="12" Foreground="#8a9ba8" Margin="0,12,0,0" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding AutopilotVm.LastError}" FontSize="12" Foreground="#F44336" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="{Binding AutopilotVm.LastError, Converter={StaticResource StringNotEmptyToVisibilityConverter}}"/>
@@ -550,6 +558,78 @@
     </Border>
 
     <Window.Resources>
+        <!-- ComboBox 样式：修复深色主题下拉菜单显示问题 -->
+        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1a2332"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#1e2d3a"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="MouseOver">
+                                        <Storyboard>
+                                            <ColorAnimation To="#2a3a4a" Storyboard.TargetName="Background" Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"/>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed"/>
+                                    <VisualState x:Name="Disabled"/>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Border x:Name="Background" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter x:Name="ContentSite" Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"/>
+                                    <Path x:Name="DropDownArrow" Grid.Column="1" Data="M0,0 L4,4 L8,0" Fill="White" Margin="0,0,8,0" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                    <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                        <Border x:Name="DropDown" Background="#1a2332" BorderBrush="#1e2d3a" BorderThickness="1" CornerRadius="4" Padding="0,4">
+                                            <ScrollViewer x:Name="DropDownScrollViewer">
+                                                <ItemsPresenter x:Name="ItemsPresenter" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                            </ScrollViewer>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Resources>
+                <!-- ComboBoxItem 样式 -->
+                <Style TargetType="ComboBoxItem">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Padding" Value="8,6"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ComboBoxItem">
+                                <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4">
+                                    <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#2a3a4a"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#667EEA"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Style.Resources>
+        </Style>
+
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#8a9ba8"/>
