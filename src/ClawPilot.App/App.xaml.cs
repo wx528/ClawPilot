@@ -410,7 +410,8 @@ namespace ClawPilot.App
         OpenClaw,
         Hermes,
         KimiCode,
-        CodeBuddy
+        CodeBuddy,
+        Auto
     }
 
     public enum AutopilotMode

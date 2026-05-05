@@ -281,7 +281,8 @@ public class AutopilotOrchestrator
             var nextWake = DateTime.Now + Interval;
 
             var decision = await _llmEngine.DecideAutopilotAsync(
-                goal, whiteboard, recentResults, elapsed, nextWake, ct);
+                goal, whiteboard, recentResults, elapsed, nextWake,
+                allowAutoExecutor: ExecutorType == ExecutorType.Auto, ct);
 
             if (decision == null)
             {
@@ -297,13 +298,7 @@ public class AutopilotOrchestrator
             foreach (var task in decision.TasksToAdd)
             {
                 var priority = ParsePriority(task.Priority);
-                var taskType = ExecutorType switch
-                {
-                    ExecutorType.Hermes => TaskType.Hermes,
-                    ExecutorType.KimiCode => TaskType.KimiCode,
-                    ExecutorType.CodeBuddy => TaskType.CodeBuddy,
-                    _ => TaskType.OpenClaw
-                };
+                var taskType = ResolveTaskType(task.TaskType, ExecutorType);
                 var result = await _taskQueue.AddTaskAsync(
                     message: task.Message,
                     agentName: AgentName,
@@ -338,13 +333,7 @@ public class AutopilotOrchestrator
                 _logger?.LogError("连续 {Threshold} 个周期安排 0 个任务，触发默认回退行为", EmptyCycleThreshold);
                 _lastError = $"已连续 {EmptyCycleThreshold} 个周期无任务，已触发默认回退任务";
 
-                var fallbackTaskType = ExecutorType switch
-                {
-                    ExecutorType.Hermes => TaskType.Hermes,
-                    ExecutorType.KimiCode => TaskType.KimiCode,
-                    ExecutorType.CodeBuddy => TaskType.CodeBuddy,
-                    _ => TaskType.OpenClaw
-                };
+                var fallbackTaskType = ResolveTaskType(null, ExecutorType);
                 var fallbackResult = await _taskQueue.AddTaskAsync(
                     message: $"Mission checkpoint: Review the goal '{goal.Title}' and whiteboard. Identify at least one actionable next step or sub-goal to maintain progress.",
                     agentName: AgentName,
@@ -415,6 +404,33 @@ public class AutopilotOrchestrator
             _lastError = ex.Message;
             await _storage.FailSessionAsync(sessionId, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 解析任务类型：Auto 模式下使用 LLM 返回的 task_type，否则使用配置的 ExecutorType
+    /// </summary>
+    private static TaskType ResolveTaskType(string? llmTaskType, ExecutorType configuredType)
+    {
+        // 非 Auto 模式，直接使用配置的执行器
+        if (configuredType != ExecutorType.Auto)
+        {
+            return configuredType switch
+            {
+                ExecutorType.Hermes => TaskType.Hermes,
+                ExecutorType.KimiCode => TaskType.KimiCode,
+                ExecutorType.CodeBuddy => TaskType.CodeBuddy,
+                _ => TaskType.OpenClaw
+            };
+        }
+
+        // Auto 模式：解析 LLM 返回的 task_type
+        return (llmTaskType?.ToLowerInvariant()) switch
+        {
+            "hermes" => TaskType.Hermes,
+            "kimicode" or "kimi" => TaskType.KimiCode,
+            "codebuddy" or "code_buddy" => TaskType.CodeBuddy,
+            _ => TaskType.OpenClaw
+        };
     }
 
     // ==================== 状态查询 ====================

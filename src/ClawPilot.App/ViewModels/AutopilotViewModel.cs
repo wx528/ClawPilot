@@ -67,11 +67,44 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedMode;
 
+    [ObservableProperty]
+    private bool _isConfigDirty;
+
+    [ObservableProperty]
+    private bool _isExecutorAuto;
+
+    /// <summary>
+    /// 记住用户手动选择的执行器类型，切换 Auto 时可恢复
+    /// </summary>
+    private int _lastManualExecutorType;
+
     public bool IsIntervalEditable => !AdaptiveIntervalEnabled;
+    public bool IsExecutorTypeEditable => !IsExecutorAuto;
 
     partial void OnAdaptiveIntervalEnabledChanged(bool value)
     {
         OnPropertyChanged(nameof(IsIntervalEditable));
+        IsConfigDirty = true;
+    }
+
+    partial void OnIntervalMinutesChanged(int value) => IsConfigDirty = true;
+    partial void OnAgentNameChanged(string value) => IsConfigDirty = true;
+    partial void OnSelectedExecutorTypeChanged(int value) => IsConfigDirty = true;
+    partial void OnSelectedModeChanged(int value) => IsConfigDirty = true;
+    partial void OnIsExecutorAutoChanged(bool value)
+    {
+        IsConfigDirty = true;
+        OnPropertyChanged(nameof(IsExecutorTypeEditable));
+        if (value)
+        {
+            // 切换到 Auto 前，记住当前手动选择
+            _lastManualExecutorType = SelectedExecutorType;
+        }
+        else
+        {
+            // 取消 Auto，恢复之前的手动选择
+            SelectedExecutorType = _lastManualExecutorType;
+        }
     }
 
     public ObservableCollection<OrchestrationSession> Sessions { get; } = new();
@@ -230,18 +263,19 @@ public partial class AutopilotViewModel : ObservableObject
             settings.AutopilotIntervalMinutes = IntervalMinutes;
             settings.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
             settings.AutopilotAgentName = AgentName;
-            settings.ExecutorType = (ExecutorType)SelectedExecutorType;
+            settings.ExecutorType = IsExecutorAuto ? ExecutorType.Auto : (ExecutorType)SelectedExecutorType;
             settings.AutopilotMode = (AutopilotMode)SelectedMode;
             var newJson = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(App.SettingsPath, newJson);
 
             _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
             _autopilot.AgentName = AgentName;
-            _autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)SelectedExecutorType;
+            _autopilot.ExecutorType = IsExecutorAuto ? ClawPilot.Core.Models.ExecutorType.Auto : (ClawPilot.Core.Models.ExecutorType)SelectedExecutorType;
             _autopilot.Mode = (ClawPilot.Core.Models.AutopilotMode)SelectedMode;
             var newInterval = TimeSpan.FromMinutes(IntervalMinutes);
             await _autopilot.RestartAsync(newInterval);
 
+            IsConfigDirty = false;
             await RefreshStatusAsync();
             var modeText = (AutopilotMode)SelectedMode == AutopilotMode.ReAct ? "ReAct 模式" : "Plan-and-Execute 模式";
             MessageBox.Show($"编排配置已更新（{modeText}），已立即生效。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -372,10 +406,13 @@ public partial class AutopilotViewModel : ObservableObject
                     _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
                     AgentName = settings.AutopilotAgentName ?? "main";
                     _autopilot.AgentName = AgentName;
-                    SelectedExecutorType = (int)settings.ExecutorType;
+                    IsExecutorAuto = settings.ExecutorType == ExecutorType.Auto;
+                    SelectedExecutorType = IsExecutorAuto ? 0 : (int)settings.ExecutorType;
+                    _lastManualExecutorType = (int)settings.ExecutorType;
                     _autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)settings.ExecutorType;
                     SelectedMode = (int)settings.AutopilotMode;
                     _autopilot.Mode = (ClawPilot.Core.Models.AutopilotMode)settings.AutopilotMode;
+                    IsConfigDirty = false;
                 }
             }
         }

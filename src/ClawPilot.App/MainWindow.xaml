@@ -541,23 +541,25 @@
                                             <TextBlock Text="分钟" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="4,0,8,0"/>
                                             <CheckBox Content="让编排者自主决定" IsChecked="{Binding AutopilotVm.AdaptiveIntervalEnabled}" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                             <Button Content="更新配置" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="10,6" Cursor="Hand" Command="{Binding AutopilotVm.UpdateIntervalCommand}"/>
+                                            <TextBlock Text="⚠ 配置已修改，点击更新配置后生效" FontSize="11" Foreground="#F44336" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="{Binding AutopilotVm.IsConfigDirty, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
                                             <TextBlock Text="编排模式" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                             <ComboBox SelectedIndex="{Binding AutopilotVm.SelectedMode, UpdateSourceTrigger=PropertyChanged}" Width="150" Padding="6,4" FontSize="13" Style="{StaticResource DarkComboBoxStyle}">
-                                                <ComboBoxItem Content="Plan & Execute"/>
+                                                <ComboBoxItem Content="Plan &amp; Execute"/>
                                                 <ComboBoxItem Content="ReAct"/>
                                             </ComboBox>
                                             <TextBlock Text="ReAct: 任务完成即触发下一轮" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
                                             <TextBlock Text="执行器类型" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                            <ComboBox x:Name="ExecutorTypeCombo" SelectedIndex="{Binding AutopilotVm.SelectedExecutorType, UpdateSourceTrigger=PropertyChanged}" Width="120" Padding="6,4" FontSize="13" Style="{StaticResource DarkComboBoxStyle}">
+                                            <ComboBox x:Name="ExecutorTypeCombo" SelectedIndex="{Binding AutopilotVm.SelectedExecutorType, UpdateSourceTrigger=PropertyChanged}" Width="120" Padding="6,4" FontSize="13" Style="{StaticResource DarkComboBoxStyle}" IsEnabled="{Binding AutopilotVm.IsExecutorTypeEditable}">
                                                 <ComboBoxItem Content="OpenClaw"/>
                                                 <ComboBoxItem Content="Hermes"/>
                                                 <ComboBoxItem Content="KimiCode"/>
                                                 <ComboBoxItem Content="CodeBuddy"/>
                                             </ComboBox>
+                                            <CheckBox x:Name="ExecutorAutoCheckBox" Content="让编排者自主决定" IsChecked="{Binding AutopilotVm.IsExecutorAuto}" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="8,0,0,0" Checked="ExecutorAutoCheckBox_Changed" Unchecked="ExecutorAutoCheckBox_Changed"/>
                                             <TextBlock x:Name="HermesAgentHint" Text="(本地 Hermes Agent，无需指定代理)" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed"/>
                                             <TextBlock x:Name="OpenClawAgentHint" Text="编排产生的任务将使用此执行者名称" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0"/>
                                         </StackPanel>

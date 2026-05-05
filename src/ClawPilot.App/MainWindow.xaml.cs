@@ -46,30 +46,46 @@ namespace ClawPilot.App
 
         private void ExecutorTypeCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            var idx = ExecutorTypeCombo.SelectedIndex;
-            if (idx == 1) // Hermes
+            UpdateExecutorTypeUI();
+        }
+
+        private void ExecutorAutoCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateExecutorTypeUI();
+        }
+
+        private void UpdateExecutorTypeUI()
+        {
+            var vm = ViewModel?.AutopilotVm;
+            if (vm?.IsExecutorAuto == true)
             {
-                AgentNamePanel.Visibility = Visibility.Collapsed;
-                HermesAgentHint.Visibility = Visibility.Visible;
-                OpenClawAgentHint.Visibility = Visibility.Collapsed;
-            }
-            else if (idx == 2) // KimiCode
-            {
+                // Auto 模式：隐藏 Agent 名称和所有提示
                 AgentNamePanel.Visibility = Visibility.Collapsed;
                 HermesAgentHint.Visibility = Visibility.Collapsed;
                 OpenClawAgentHint.Visibility = Visibility.Collapsed;
             }
-            else if (idx == 3) // CodeBuddy
+            else
             {
-                AgentNamePanel.Visibility = Visibility.Collapsed;
-                HermesAgentHint.Visibility = Visibility.Collapsed;
-                OpenClawAgentHint.Visibility = Visibility.Collapsed;
-            }
-            else // OpenClaw (idx == 0)
-            {
-                AgentNamePanel.Visibility = Visibility.Visible;
-                HermesAgentHint.Visibility = Visibility.Collapsed;
-                OpenClawAgentHint.Visibility = Visibility.Visible;
+                // 非 Auto 模式：根据选中的执行器类型决定 UI
+                var idx = ExecutorTypeCombo.SelectedIndex;
+                if (idx == 1) // Hermes
+                {
+                    AgentNamePanel.Visibility = Visibility.Collapsed;
+                    HermesAgentHint.Visibility = Visibility.Visible;
+                    OpenClawAgentHint.Visibility = Visibility.Collapsed;
+                }
+                else if (idx == 2 || idx == 3) // KimiCode / CodeBuddy
+                {
+                    AgentNamePanel.Visibility = Visibility.Collapsed;
+                    HermesAgentHint.Visibility = Visibility.Collapsed;
+                    OpenClawAgentHint.Visibility = Visibility.Collapsed;
+                }
+                else // OpenClaw (idx == 0)
+                {
+                    AgentNamePanel.Visibility = Visibility.Visible;
+                    HermesAgentHint.Visibility = Visibility.Collapsed;
+                    OpenClawAgentHint.Visibility = Visibility.Visible;
+                }
             }
         }
 

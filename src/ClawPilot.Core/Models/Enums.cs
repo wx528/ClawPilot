@@ -51,7 +51,8 @@ public enum ExecutorType
     OpenClaw,
     Hermes,
     KimiCode,
-    CodeBuddy
+    CodeBuddy,
+    Auto
 }
 
 /// <summary>
