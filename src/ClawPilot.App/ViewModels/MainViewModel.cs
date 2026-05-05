@@ -51,6 +51,9 @@ public partial class MainViewModel : ObservableObject
     private string _message = "";
 
     [ObservableProperty]
+    private int _selectedTaskTypeIndex;
+
+    [ObservableProperty]
     private string _llmApiKey = "";
 
     [ObservableProperty]
@@ -89,6 +92,18 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<TaskItem> TaskItems { get; } = new();
     public AutopilotViewModel AutopilotVm { get; }
+
+    /// <summary>
+    /// 应用版本号（从程序集读取）
+    /// </summary>
+    public string AppVersion
+    {
+        get
+        {
+            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            return v != null ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.3.0";
+        }
+    }
 
     public MainViewModel(
         TaskQueueService taskQueue,
@@ -159,18 +174,39 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task AddTask()
     {
-        if (string.IsNullOrWhiteSpace(AgentName) || string.IsNullOrWhiteSpace(Message))
+        if (string.IsNullOrWhiteSpace(Message))
         {
-            MessageBox.Show("请输入代理名称和任务信息", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("请输入任务消息", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
+        }
+
+        // 根据下拉框选中索引映射 TaskType
+        var taskType = SelectedTaskTypeIndex switch
+        {
+            1 => TaskType.Hermes,
+            2 => TaskType.KimiCode,
+            3 => TaskType.CodeBuddy,
+            _ => TaskType.OpenClaw
+        };
+
+        // KimiCode / CodeBuddy 不需要 Agent 名称，自动填充
+        var agentName = AgentName;
+        if (string.IsNullOrWhiteSpace(agentName))
+        {
+            agentName = taskType switch
+            {
+                TaskType.KimiCode => "kimi",
+                TaskType.CodeBuddy => "codebuddy",
+                _ => "main"
+            };
         }
 
         try
         {
-            var result = await _taskQueue.AddTaskAsync(Message, AgentName);
+            var result = await _taskQueue.AddTaskAsync(Message, agentName, taskType);
             if (result.Success)
             {
-                MessageBox.Show($"任务添加成功 (ID: {result.TaskId})", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"任务添加成功 (ID: {result.TaskId}, 类型: {taskType})", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
                 await LoadData();
             }
             else
@@ -234,6 +270,26 @@ public partial class MainViewModel : ObservableObject
             {
                 _logger.LogError(ex, "清除已完成任务失败");
                 MessageBox.Show($"清除已完成任务失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    [RelayCommand]
+    private async Task ClearAllTasks()
+    {
+        var result = MessageBox.Show("确定要清除所有任务吗？此操作不可恢复！", "确认全部清除", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result == MessageBoxResult.Yes)
+        {
+            try
+            {
+                var count = await _taskQueue.ClearAllTasksAsync();
+                MessageBox.Show($"已清除 {count} 个任务", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "清除全部任务失败");
+                MessageBox.Show($"清除全部任务失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

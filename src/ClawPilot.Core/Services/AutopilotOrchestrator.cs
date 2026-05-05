@@ -23,8 +23,16 @@ public class AutopilotOrchestrator
     public bool AdaptiveIntervalEnabled { get; set; } = false;
     public string AgentName { get; set; } = "main";
     public ExecutorType ExecutorType { get; set; } = ExecutorType.OpenClaw;
+    public AutopilotMode Mode { get; set; } = AutopilotMode.PlanAndExecute;
     private string? _lastError;
     private int _consecutiveEmptyCycles = 0;
+    private DaemonService? _daemonService;
+
+    // ReAct 防抖机制
+    private bool _isReactTriggerPending = false;
+    private DateTime _lastReactTriggerAt = DateTime.MinValue;
+    private readonly TimeSpan _reactDebounceInterval = TimeSpan.FromSeconds(3);
+    private CancellationTokenSource? _reactDebounceCts;
 
     public int EmptyCycleThreshold { get; set; } = 3;
 
@@ -44,6 +52,94 @@ public class AutopilotOrchestrator
         _storage = storage;
         _llmEngine = llmEngine;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// 设置 DaemonService 用于订阅任务完成事件（ReAct 模式）
+    /// </summary>
+    public void SetDaemonService(DaemonService daemonService)
+    {
+        // 取消旧的订阅
+        if (_daemonService != null)
+        {
+            _daemonService.TaskCompleted -= OnDaemonTaskCompleted;
+        }
+
+        _daemonService = daemonService;
+        _daemonService.TaskCompleted += OnDaemonTaskCompleted;
+        _logger?.LogInformation("已订阅 DaemonService TaskCompleted 事件");
+    }
+
+    /// <summary>
+    /// Daemon 任务完成事件处理（ReAct 模式核心）
+    /// 策略：任务完成即触发编排 + 3秒防抖（多个任务几乎同时完成时合并为一次触发）
+    /// </summary>
+    private async void OnDaemonTaskCompleted(object? sender, TaskCompletedEventArgs e)
+    {
+        if (!_isRunning || Mode != AutopilotMode.ReAct || _cts == null)
+            return;
+
+        // 只响应最终结果（成功 或 失败且不再重试），忽略待重试事件
+        if (!e.IsFinal)
+        {
+            _logger?.LogDebug("[ReAct] 任务 {TaskId} 非最终结果（待重试），跳过触发", e.TaskId);
+            return;
+        }
+
+        // 如果正在执行编排周期，跳过（避免重入）
+        if (_isReactTriggerPending)
+        {
+            _logger?.LogDebug("[ReAct] 编排周期正在执行中，跳过本次触发（任务 {TaskId}）", e.TaskId);
+            return;
+        }
+
+        _logger?.LogInformation("[ReAct] 任务 {TaskId} 完成，启动防抖等待（{DebounceMs}ms）", e.TaskId, _reactDebounceInterval.TotalMilliseconds);
+
+        // 取消之前的防抖等待（如果有）
+        _reactDebounceCts?.Cancel();
+        _reactDebounceCts = new CancellationTokenSource();
+        var currentCts = _reactDebounceCts;
+
+        try
+        {
+            // 防抖等待：3秒内如果有新任务完成，会取消本次等待，重新计时
+            await Task.Delay(_reactDebounceInterval, currentCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // 被新的完成事件取消了，说明还在密集完成期，等下一次
+            _logger?.LogDebug("[ReAct] 防抖被新完成事件打断，等待下一次触发");
+            return;
+        }
+
+        // 防抖通过，检查是否仍在运行
+        if (!_isRunning || Mode != AutopilotMode.ReAct || _cts == null)
+            return;
+
+        // 防重入
+        if (_isReactTriggerPending)
+            return;
+
+        _isReactTriggerPending = true;
+        _lastReactTriggerAt = DateTime.Now;
+
+        try
+        {
+            _logger?.LogInformation("[ReAct] 防抖通过，触发编排周期");
+
+            // 短暂延迟确保任务状态已持久化
+            await Task.Delay(500);
+
+            await ExecuteCycleAsync(_cts.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[ReAct] 触发编排失败");
+        }
+        finally
+        {
+            _isReactTriggerPending = false;
+        }
     }
 
     // ==================== 生命周期 ====================
@@ -71,6 +167,7 @@ public class AutopilotOrchestrator
         if (!_isRunning) return;
 
         _isRunning = false;
+        _reactDebounceCts?.Cancel();
         _cts?.Cancel();
         _logger?.LogInformation("自动驾驶编排器已停止");
     }
@@ -200,7 +297,13 @@ public class AutopilotOrchestrator
             foreach (var task in decision.TasksToAdd)
             {
                 var priority = ParsePriority(task.Priority);
-                var taskType = ExecutorType == ExecutorType.Hermes ? TaskType.Hermes : TaskType.OpenClaw;
+                var taskType = ExecutorType switch
+                {
+                    ExecutorType.Hermes => TaskType.Hermes,
+                    ExecutorType.KimiCode => TaskType.KimiCode,
+                    ExecutorType.CodeBuddy => TaskType.CodeBuddy,
+                    _ => TaskType.OpenClaw
+                };
                 var result = await _taskQueue.AddTaskAsync(
                     message: task.Message,
                     agentName: AgentName,
@@ -235,7 +338,13 @@ public class AutopilotOrchestrator
                 _logger?.LogError("连续 {Threshold} 个周期安排 0 个任务，触发默认回退行为", EmptyCycleThreshold);
                 _lastError = $"已连续 {EmptyCycleThreshold} 个周期无任务，已触发默认回退任务";
 
-                var fallbackTaskType = ExecutorType == ExecutorType.Hermes ? TaskType.Hermes : TaskType.OpenClaw;
+                var fallbackTaskType = ExecutorType switch
+                {
+                    ExecutorType.Hermes => TaskType.Hermes,
+                    ExecutorType.KimiCode => TaskType.KimiCode,
+                    ExecutorType.CodeBuddy => TaskType.CodeBuddy,
+                    _ => TaskType.OpenClaw
+                };
                 var fallbackResult = await _taskQueue.AddTaskAsync(
                     message: $"Mission checkpoint: Review the goal '{goal.Title}' and whiteboard. Identify at least one actionable next step or sub-goal to maintain progress.",
                     agentName: AgentName,

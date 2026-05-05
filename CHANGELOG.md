@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-05-05
+
+### Added
+
+#### 通用 CLI 执行器架构
+- **CliExecutorBase 抽象基类** — 提取所有 AI Code CLI 的公共逻辑（PATH 查找、进程启动、超时控制、输出收集、参数转义），新增执行器只需继承并实现 2 个成员
+- **Windows PATH 智能查找** — 使用 `where` 命令自动在系统 PATH 中查找 CLI 可执行文件，不再要求用户必须配置绝对路径
+- **Windows 中文编码修复** — 通过 `cmd /c chcp 65001` 设置代码页为 UTF-8，解决 Node.js CLI 工具（Kimi、CodeBuddy）在 Windows 中文环境下的输出乱码问题
+- **超时输出保留** — 超时终止进程前先读取已缓冲的输出内容，不再直接丢弃
+
+#### Kimi Code CLI 执行器（重构）
+- **正确参数格式** — 修正为 `kimi --quiet -p "msg"`，原 `--no-color` 和 `KIMI_NO_INTERACTIVE` 环境变量不存在于 Kimi CLI
+- **工作目录支持** — 新增 `--work-dir` 参数，可指定项目目录
+- **AFK 无人值守模式** — 支持 `--afk` 参数，自动审批 + 自动 dismiss AskUserQuestion
+- **步数控制** — 支持 `--max-steps-per-turn` 参数
+- **默认超时延长** — 从 120s 调整为 300s，适应 AI 编程任务较重的场景
+- **配置项** — `settings.json` 新增 `KimiCodeCommandPath`（默认 `kimi.exe`）、`KimiCodeWorkDir`、`KimiCodeMaxStepsPerTurn`
+
+#### CodeBuddy Code CLI 执行器（新增）
+- **CodeBuddyExecutor** — 腾讯云 AI 编程助手 CLI 执行器，安装方式 `npm install -g @tencent-ai/codebuddy-code`
+- **非交互模式** — 使用 `-p` 参数传 prompt，`--output-format` 控制输出格式
+- **权限跳过** — 无人值守场景自动启用 `--dangerously-skip-permissions`
+- **工具白名单/黑名单** — 支持 `--tools` 和 `--disallowedTools` 参数精细控制
+- **系统提示词追加** — 支持 `--append-system-prompt` 参数
+- **配置项** — `settings.json` 新增 `CodeBuddyCommandPath`（默认 `codebuddy`）、`CodeBuddyWorkDir`、`CodeBuddySkipPermissions`、`CodeBuddyAllowedTools`
+
+#### 枚举扩展
+- `TaskType` 新增 `CodeBuddy`
+- `ExecutorType` 新增 `CodeBuddy`
+
+#### UI 改进
+- **快捷操作页重构** — 执行器选择下拉框移至第一行，移除未实现的 `langgraph`，绑定 ViewModel 的 `SelectedTaskTypeIndex`
+- **添加任务传正确类型** — `AddTask()` 根据下拉框索引映射正确的 `TaskType`，KimiCode/CodeBuddy 不再强制要求 Agent 名称
+- **执行器状态卡片** — 快捷操作页新增执行器状态展示，一目了然当前支持的所有执行器
+- **Daemon 控制增强** — 新增"执行一个任务"按钮
+- **ComboBox 深色主题修复** — 重写 `DarkComboBoxStyle`：添加 ToggleButton 支持点击切换、使用 `RelativeSource TemplatedParent` 替代 `ElementName` 绑定宽度（修复 Popup 跨可视化树绑定失效）
+
+### Changed
+- **KimiCodeExecutor** 从独立实现改为继承 `CliExecutorBase`，代码量从 138 行降至 55 行
+- **DaemonService.RunOnceAsync** 补全 KimiCode 和 CodeBuddy 执行分支
+- **AutopilotOrchestrator** 的 `ExecutorType→TaskType` 映射从 `if-else` 改为 `switch` 表达式，覆盖所有执行器类型
+- **RegisteredExecutors** 从硬编码 `["openclaw"]` 改为 `["openclaw", "hermes", "kimicode", "codebuddy"]`
+- **执行器架构** — 从 3 种执行器扩展到 4 种，新增执行器只需 3 步（继承基类 + 加枚举 + 注册 DI）
 
 ## [0.2.2] - 2026-04-30
 

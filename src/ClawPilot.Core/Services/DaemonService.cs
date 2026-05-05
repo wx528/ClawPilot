@@ -12,6 +12,8 @@ public class DaemonService
     private readonly TaskQueueService _taskQueue;
     private readonly OpenClawExecutor _openClawExecutor;
     private readonly HermesExecutor _hermesExecutor;
+    private readonly KimiCodeExecutor _kimiCodeExecutor;
+    private readonly CodeBuddyExecutor _codeBuddyExecutor;
     private readonly ILogger? _logger;
 
     private CancellationTokenSource? _cts;
@@ -44,6 +46,11 @@ public class DaemonService
 
     public bool IsRunning => _isRunning;
     public DateTime? StartedAt => _startedAt;
+
+    /// <summary>
+    /// 任务完成事件（ReAct 模式使用）
+    /// </summary>
+    public event EventHandler<TaskCompletedEventArgs>? TaskCompleted;
 
     /// <summary>
     /// 轮询间隔（秒）
@@ -91,11 +98,13 @@ public class DaemonService
     /// </summary>
     public int MaxRetries { get; set; } = 3;
 
-    public DaemonService(TaskQueueService taskQueue, OpenClawExecutor openClawExecutor, HermesExecutor hermesExecutor, ILogger? logger = null)
+    public DaemonService(TaskQueueService taskQueue, OpenClawExecutor openClawExecutor, HermesExecutor hermesExecutor, KimiCodeExecutor kimiCodeExecutor, CodeBuddyExecutor codeBuddyExecutor, ILogger? logger = null)
     {
         _taskQueue = taskQueue;
         _openClawExecutor = openClawExecutor;
         _hermesExecutor = hermesExecutor;
+        _kimiCodeExecutor = kimiCodeExecutor;
+        _codeBuddyExecutor = codeBuddyExecutor;
         _logger = logger;
     }
 
@@ -245,6 +254,22 @@ public class DaemonService
                 status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
                 exitCode = success ? 0 : 1;
             }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.KimiCode)
+            {
+                (var success, output, stderr) = await _kimiCodeExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+                exitCode = success ? 0 : 1;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.CodeBuddy)
+            {
+                (var success, output, stderr) = await _codeBuddyExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+                exitCode = success ? 0 : 1;
+            }
             else
             {
                 status = ClawPilot.Core.Models.TaskStatus.Failed;
@@ -259,11 +284,13 @@ public class DaemonService
                 RecordHistory(task, status, output);
                 StatsProcessed++;
                 StatsSucceeded++;
+                OnTaskCompleted(task.Id.ToString(), status, output);
             }
             else if (task.RetryCount < MaxRetries)
             {
                 _logger?.LogError("任务 {TaskId} 失败，Status: {Status}, ExitCode: {ExitCode}, Stderr: {Stderr}", task.Id, status, exitCode, stderr);
                 ScheduleRetry(task, output);
+                OnTaskCompleted(task.Id.ToString(), status, output + $"\n[将在 {Math.Min(30000, (int)Math.Pow(2, task.RetryCount) * 1000)}ms 后重试]", isFinal: false);
             }
             else
             {
@@ -272,12 +299,15 @@ public class DaemonService
                 RecordHistory(task, status, output);
                 StatsProcessed++;
                 StatsFailed++;
+                OnTaskCompleted(task.Id.ToString(), status, output);
             }
         }
         catch (OperationCanceledException)
         {
             _logger?.LogInformation("任务 {TaskId} 被取消", task.Id);
-            await _taskQueue.ReportResultAsync(task.Id, ClawPilot.Core.Models.TaskStatus.Failed, "任务被取消");
+            var output = "任务被取消";
+            await _taskQueue.ReportResultAsync(task.Id, ClawPilot.Core.Models.TaskStatus.Failed, output);
+            OnTaskCompleted(task.Id.ToString(), ClawPilot.Core.Models.TaskStatus.Failed, output);
         }
         catch (Exception ex)
         {
@@ -285,11 +315,13 @@ public class DaemonService
             if (task.RetryCount < MaxRetries)
             {
                 ScheduleRetry(task, ex.Message);
+                OnTaskCompleted(task.Id.ToString(), ClawPilot.Core.Models.TaskStatus.Failed, ex.Message + $"\n[将在 {Math.Min(30000, (int)Math.Pow(2, task.RetryCount) * 1000)}ms 后重试]", isFinal: false);
             }
             else
             {
                 await _taskQueue.ReportResultAsync(task.Id, ClawPilot.Core.Models.TaskStatus.Failed, ex.Message);
                 StatsFailed++;
+                OnTaskCompleted(task.Id.ToString(), ClawPilot.Core.Models.TaskStatus.Failed, ex.Message);
             }
         }
         finally
@@ -366,17 +398,31 @@ public class DaemonService
             status = statusStr == "success" ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
         }
         else if (task.TaskType == ClawPilot.Core.Models.TaskType.Hermes)
-        {
-            (var success, output, _) = await _hermesExecutor.ExecuteAsync(
-                task.Message, ExecutorTimeoutSeconds);
-            
-            status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
-        }
-        else
-        {
-            status = ClawPilot.Core.Models.TaskStatus.Failed;
-            output = $"不支持的任务类型: {task.TaskType}";
-        }
+            {
+                (var success, output, _) = await _hermesExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.KimiCode)
+            {
+                (var success, output, _) = await _kimiCodeExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.CodeBuddy)
+            {
+                (var success, output, _) = await _codeBuddyExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
+            else
+            {
+                status = ClawPilot.Core.Models.TaskStatus.Failed;
+                output = $"不支持的任务类型: {task.TaskType}";
+            }
 
         // 回报结果
         await _taskQueue.ReportResultAsync(task.Id, status, output);
@@ -414,7 +460,37 @@ public class DaemonService
             StatsFailed = StatsFailed,
             CurrentTaskInfo = CurrentTaskInfo,
             ExecutionHistory = historySnapshot,
-            RegisteredExecutors = ["openclaw"],
+            RegisteredExecutors = ["openclaw", "hermes", "kimicode", "codebuddy"],
         };
     }
+
+    /// <summary>
+    /// 触发任务完成事件
+    /// </summary>
+    private void OnTaskCompleted(string taskId, ClawPilot.Core.Models.TaskStatus status, string output, bool isFinal = true)
+    {
+        TaskCompleted?.Invoke(this, new TaskCompletedEventArgs
+        {
+            TaskId = taskId,
+            Status = status,
+            Output = output,
+            IsFinal = isFinal
+        });
+    }
+}
+
+/// <summary>
+/// 任务完成事件参数（ReAct 模式使用）
+/// </summary>
+public class TaskCompletedEventArgs : EventArgs
+{
+    public string TaskId { get; set; } = "";
+    public ClawPilot.Core.Models.TaskStatus Status { get; set; }
+    public string Output { get; set; } = "";
+
+    /// <summary>
+    /// 是否为最终结果（true: 成功/失败且不再重试; false: 失败但还会重试）
+    /// ReAct 模式只响应 IsFinal=true 的事件，避免在重试期间误触编排
+    /// </summary>
+    public bool IsFinal { get; set; } = true;
 }

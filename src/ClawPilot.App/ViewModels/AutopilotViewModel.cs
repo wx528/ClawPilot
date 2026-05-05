@@ -64,6 +64,9 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedExecutorType;
 
+    [ObservableProperty]
+    private int _selectedMode;
+
     public bool IsIntervalEditable => !AdaptiveIntervalEnabled;
 
     partial void OnAdaptiveIntervalEnabledChanged(bool value)
@@ -228,17 +231,20 @@ public partial class AutopilotViewModel : ObservableObject
             settings.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
             settings.AutopilotAgentName = AgentName;
             settings.ExecutorType = (ExecutorType)SelectedExecutorType;
+            settings.AutopilotMode = (AutopilotMode)SelectedMode;
             var newJson = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(App.SettingsPath, newJson);
 
             _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
             _autopilot.AgentName = AgentName;
             _autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)SelectedExecutorType;
+            _autopilot.Mode = (ClawPilot.Core.Models.AutopilotMode)SelectedMode;
             var newInterval = TimeSpan.FromMinutes(IntervalMinutes);
             await _autopilot.RestartAsync(newInterval);
 
             await RefreshStatusAsync();
-            MessageBox.Show($"编排配置已更新，已立即生效。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            var modeText = (AutopilotMode)SelectedMode == AutopilotMode.ReAct ? "ReAct 模式" : "Plan-and-Execute 模式";
+            MessageBox.Show($"编排配置已更新（{modeText}），已立即生效。", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
@@ -366,6 +372,10 @@ public partial class AutopilotViewModel : ObservableObject
                     _autopilot.AdaptiveIntervalEnabled = AdaptiveIntervalEnabled;
                     AgentName = settings.AutopilotAgentName ?? "main";
                     _autopilot.AgentName = AgentName;
+                    SelectedExecutorType = (int)settings.ExecutorType;
+                    _autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)settings.ExecutorType;
+                    SelectedMode = (int)settings.AutopilotMode;
+                    _autopilot.Mode = (ClawPilot.Core.Models.AutopilotMode)settings.AutopilotMode;
                 }
             }
         }

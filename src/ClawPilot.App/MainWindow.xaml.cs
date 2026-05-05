@@ -46,13 +46,26 @@ namespace ClawPilot.App
 
         private void ExecutorTypeCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (ExecutorTypeCombo.SelectedIndex == 1) // Hermes
+            var idx = ExecutorTypeCombo.SelectedIndex;
+            if (idx == 1) // Hermes
             {
                 AgentNamePanel.Visibility = Visibility.Collapsed;
                 HermesAgentHint.Visibility = Visibility.Visible;
                 OpenClawAgentHint.Visibility = Visibility.Collapsed;
             }
-            else // OpenClaw
+            else if (idx == 2) // KimiCode
+            {
+                AgentNamePanel.Visibility = Visibility.Collapsed;
+                HermesAgentHint.Visibility = Visibility.Collapsed;
+                OpenClawAgentHint.Visibility = Visibility.Collapsed;
+            }
+            else if (idx == 3) // CodeBuddy
+            {
+                AgentNamePanel.Visibility = Visibility.Collapsed;
+                HermesAgentHint.Visibility = Visibility.Collapsed;
+                OpenClawAgentHint.Visibility = Visibility.Collapsed;
+            }
+            else // OpenClaw (idx == 0)
             {
                 AgentNamePanel.Visibility = Visibility.Visible;
                 HermesAgentHint.Visibility = Visibility.Collapsed;

@@ -183,10 +183,27 @@ namespace ClawPilot.App
                 var hermesExecutor = new HermesExecutor(
                     sp.GetService<ILogger<HermesExecutor>>(),
                     settings.HermesCommandPath);
+                var kimiCodeExecutor = new KimiCodeExecutor(
+                    sp.GetService<ILogger<KimiCodeExecutor>>(),
+                    settings.KimiCodeCommandPath)
+                {
+                    WorkingDirectory = settings.KimiCodeWorkDir,
+                    MaxStepsPerTurn = settings.KimiCodeMaxStepsPerTurn
+                };
+                var codeBuddyExecutor = new CodeBuddyExecutor(
+                    sp.GetService<ILogger<CodeBuddyExecutor>>(),
+                    settings.CodeBuddyCommandPath)
+                {
+                    WorkingDirectory = settings.CodeBuddyWorkDir,
+                    SkipPermissions = settings.CodeBuddySkipPermissions,
+                    AllowedTools = settings.CodeBuddyAllowedTools
+                };
                 var daemon = new DaemonService(
                     sp.GetRequiredService<TaskQueueService>(),
                     sp.GetRequiredService<OpenClawExecutor>(),
                     hermesExecutor,
+                    kimiCodeExecutor,
+                    codeBuddyExecutor,
                     sp.GetService<ILogger<DaemonService>>());
                 daemon.ExecutorTimeoutSeconds = settings.OpenClawTimeoutSeconds;
                 daemon.MaxConcurrency = settings.DaemonMaxConcurrency;
@@ -209,11 +226,22 @@ namespace ClawPilot.App
             services.AddSingleton(sp => new LlmDecisionEngine(
                 sp.GetRequiredService<ILlmClient>(),
                 sp.GetService<ILogger<LlmDecisionEngine>>()));
-            services.AddSingleton(sp => new AutopilotOrchestrator(
-                sp.GetRequiredService<TaskQueueService>(),
-                sp.GetRequiredService<OrchestratorStorageService>(),
-                sp.GetRequiredService<LlmDecisionEngine>(),
-                sp.GetService<ILogger<AutopilotOrchestrator>>()));
+            services.AddSingleton(sp =>
+            {
+                var settings = LoadLlmSettings();
+                var autopilot = new AutopilotOrchestrator(
+                    sp.GetRequiredService<TaskQueueService>(),
+                    sp.GetRequiredService<OrchestratorStorageService>(),
+                    sp.GetRequiredService<LlmDecisionEngine>(),
+                    sp.GetService<ILogger<AutopilotOrchestrator>>());
+                autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)settings.ExecutorType;
+                autopilot.Mode = (ClawPilot.Core.Models.AutopilotMode)settings.AutopilotMode;
+
+                // 连接到 DaemonService 以支持 ReAct 事件
+                var daemon = sp.GetRequiredService<DaemonService>();
+                autopilot.SetDaemonService(daemon);
+                return autopilot;
+            });
             services.AddTransient<AutopilotViewModel>();
 
             // UI 组件和视图模型
@@ -380,7 +408,15 @@ namespace ClawPilot.App
     public enum ExecutorType
     {
         OpenClaw,
-        Hermes
+        Hermes,
+        KimiCode,
+        CodeBuddy
+    }
+
+    public enum AutopilotMode
+    {
+        PlanAndExecute,
+        ReAct
     }
 
     public class LlmSettings
@@ -394,6 +430,14 @@ namespace ClawPilot.App
         public string AutopilotAgentName { get; set; } = "main";
         public int DaemonMaxConcurrency { get; set; } = 1;
         public ExecutorType ExecutorType { get; set; } = ExecutorType.OpenClaw;
+        public AutopilotMode AutopilotMode { get; set; } = AutopilotMode.PlanAndExecute;
         public string HermesCommandPath { get; set; } = @"D:\agents\hermes-agent\hermes.ps1";
+        public string KimiCodeCommandPath { get; set; } = "kimi.exe";
+        public string? KimiCodeWorkDir { get; set; }
+        public int KimiCodeMaxStepsPerTurn { get; set; } = 100;
+        public string CodeBuddyCommandPath { get; set; } = "codebuddy";
+        public string? CodeBuddyWorkDir { get; set; }
+        public bool CodeBuddySkipPermissions { get; set; } = true;
+        public string? CodeBuddyAllowedTools { get; set; }
     }
 }

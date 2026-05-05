@@ -18,7 +18,9 @@ public enum TaskType
 {
     OpenClaw,
     LangGraph,
-    Hermes
+    Hermes,
+    KimiCode,
+    CodeBuddy
 }
 
 /// <summary>
@@ -48,6 +50,17 @@ public enum ExecutorType
 {
     OpenClaw,
     Hermes,
+    KimiCode,
+    CodeBuddy
+}
+
+/// <summary>
+/// 自动驾驶模式
+/// </summary>
+public enum AutopilotMode
+{
+    PlanAndExecute,
+    ReAct
 }
 
 /// <summary>

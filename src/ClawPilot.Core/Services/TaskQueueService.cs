@@ -481,6 +481,15 @@ public class TaskQueueService
         return successCount + failedCount;
     }
 
+    public async Task<int> ClearAllTasksAsync()
+    {
+        var pendingCount = await DeleteTasksAsync(status: TaskStatus.Pending);
+        var runningCount = await DeleteTasksAsync(status: TaskStatus.Running);
+        var successCount = await DeleteTasksAsync(status: TaskStatus.Success);
+        var failedCount = await DeleteTasksAsync(status: TaskStatus.Failed);
+        return pendingCount + runningCount + successCount + failedCount;
+    }
+
     /// <summary>
     /// 安排任务重试：将状态重置为 pending 并递增 retry_count
     /// </summary>
