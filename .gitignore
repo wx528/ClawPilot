@@ -57,6 +57,7 @@ _debug_logs/
 *.key
 *.pfx
 *.p12
+settings.json
 
 ## OS generated
 .DS_Store

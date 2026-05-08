@@ -176,7 +176,7 @@ The `profiles/` directory contains sample orchestration configs. Copy them to `%
 
 Executor command paths can be configured in the Settings page:
 - OpenClaw API endpoint
-- Hermes script path (e.g., `D:\agents\hermes-agent\hermes.ps1`)
+- Hermes script path (e.g., `/path/to/hermes.ps1`)
 - Kimi Code CLI executable path (default: `kimi.exe`, supports PATH auto-discovery)
 - CodeBuddy Code CLI executable path (default: `codebuddy`, supports PATH auto-discovery)
 

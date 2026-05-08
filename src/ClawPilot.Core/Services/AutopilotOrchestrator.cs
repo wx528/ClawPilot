@@ -10,8 +10,9 @@ public class AutopilotOrchestrator
 {
     private readonly TaskQueueService _taskQueue;
     private readonly OrchestratorStorageService _storage;
-    private readonly LlmDecisionEngine _llmEngine;
+    private LlmDecisionEngine _llmEngine;
     private readonly ILogger? _logger;
+    private readonly LlmClientFactory? _llmClientFactory;
 
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
@@ -47,12 +48,32 @@ public class AutopilotOrchestrator
         TaskQueueService taskQueue,
         OrchestratorStorageService storage,
         LlmDecisionEngine llmEngine,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        LlmClientFactory? llmClientFactory = null)
     {
         _taskQueue = taskQueue;
         _storage = storage;
         _llmEngine = llmEngine;
         _logger = logger;
+        _llmClientFactory = llmClientFactory;
+    }
+
+    public void SetLlmEngine(LlmDecisionEngine engine)
+    {
+        _llmEngine = engine;
+    }
+
+    public void ApplyPresetLlmConfig(string? apiKey, string? baseUrl, string? model)
+    {
+        if (_llmClientFactory == null) return;
+        if (string.IsNullOrWhiteSpace(apiKey)) return;
+
+        var client = _llmClientFactory.GetOrCreate(
+            apiKey,
+            baseUrl ?? "",
+            model ?? "");
+        _llmEngine = new LlmDecisionEngine(client, _logger as ILogger<LlmDecisionEngine>);
+        _logger?.LogInformation("编排器已切换到独立 LLM 配置: BaseUrl={BaseUrl}, Model={Model}", baseUrl ?? "(default)", model ?? "(default)");
     }
 
     /// <summary>

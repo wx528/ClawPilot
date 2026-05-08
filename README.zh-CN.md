@@ -176,7 +176,7 @@ dotnet publish src/ClawPilot.App -c Release -r win-x64 --self-contained -p:Publi
 
 在设置页中可以配置各执行器的命令路径：
 - OpenClaw API 地址
-- Hermes 脚本路径（如：`D:\agents\hermes-agent\hermes.ps1`）
+- Hermes 脚本路径（如：`/path/to/hermes.ps1`）
 - Kimi Code CLI 可执行文件路径（默认 `kimi.exe`，支持 PATH 自动查找）
 - CodeBuddy Code CLI 可执行文件路径（默认 `codebuddy`，支持 PATH 自动查找）
 

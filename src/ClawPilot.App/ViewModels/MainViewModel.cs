@@ -58,6 +58,28 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _llmModel = "";
 
+    [ObservableProperty]
+    private int _llmProviderIndex;
+
+    public List<LlmProvider> LlmProviders { get; } = LlmProvider.BuiltInProviders;
+
+    partial void OnLlmProviderIndexChanged(int value)
+    {
+        if (value < 0 || value >= LlmProviders.Count) return;
+        var provider = LlmProviders[value];
+        if (provider.Name == "custom") return;
+
+        if (string.IsNullOrWhiteSpace(LlmBaseUrl) || LlmProviders.Any(p => p.BaseUrl == LlmBaseUrl))
+        {
+            LlmBaseUrl = provider.BaseUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(LlmModel) || LlmProviders.Any(p => p.DefaultModel == LlmModel))
+        {
+            LlmModel = provider.DefaultModel;
+        }
+    }
+
     // Note: _openClawTimeoutSeconds and _daemonMaxConcurrency are implemented manually
     // with validation logic, so they don't use [ObservableProperty] attribute
     private int _openClawTimeoutSeconds = 600;
@@ -134,6 +156,7 @@ public partial class MainViewModel : ObservableObject
                     LlmApiKey = settings.ApiKey ?? "";
                     LlmBaseUrl = settings.BaseUrl ?? "";
                     LlmModel = settings.Model ?? "";
+                    LlmProviderIndex = DetectGlobalProviderIndex(settings.BaseUrl);
                     OpenClawTimeoutSeconds = settings.OpenClawTimeoutSeconds > 0 ? settings.OpenClawTimeoutSeconds : 600;
                     DaemonMaxConcurrency = settings.DaemonMaxConcurrency > 0 ? settings.DaemonMaxConcurrency : 1;
                 }
@@ -471,6 +494,16 @@ public partial class MainViewModel : ObservableObject
     public async Task ShowQueueInfoDialog()
     {
         await ShowQueueInfo();
+    }
+
+    private int DetectGlobalProviderIndex(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl)) return 0;
+        for (var i = 1; i < LlmProviders.Count; i++)
+        {
+            if (LlmProviders[i].BaseUrl == baseUrl) return i;
+        }
+        return 0;
     }
 
     [RelayCommand]

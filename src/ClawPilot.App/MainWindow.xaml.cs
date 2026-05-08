@@ -154,6 +154,27 @@ namespace ClawPilot.App
 
         #endregion
 
+        #region 独立 LLM 配置
+
+        private void PresetApiKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            var vm = ViewModel?.AutopilotVm;
+            if (vm != null && PresetApiKeyBox != null)
+            {
+                vm.PresetLlmApiKey = PresetApiKeyBox.Password;
+            }
+        }
+
+        public void SyncPresetApiKeyToUi(string? apiKey)
+        {
+            if (PresetApiKeyBox == null) return;
+            PresetApiKeyBox.PasswordChanged -= PresetApiKeyBox_PasswordChanged;
+            PresetApiKeyBox.Password = apiKey ?? "";
+            PresetApiKeyBox.PasswordChanged += PresetApiKeyBox_PasswordChanged;
+        }
+
+        #endregion
+
         #region 窗口控制
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

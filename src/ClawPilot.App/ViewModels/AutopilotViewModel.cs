@@ -94,6 +94,37 @@ public partial class AutopilotViewModel : ObservableObject
     [ObservableProperty]
     private string _presetPersonaPrompt = "";
 
+    [ObservableProperty]
+    private string _presetLlmApiKey = "";
+
+    [ObservableProperty]
+    private string _presetLlmBaseUrl = "";
+
+    [ObservableProperty]
+    private string _presetLlmModel = "";
+
+    [ObservableProperty]
+    private int _presetLlmProviderIndex;
+
+    public List<LlmProvider> LlmProviders { get; } = LlmProvider.BuiltInProviders;
+
+    partial void OnPresetLlmProviderIndexChanged(int value)
+    {
+        if (value < 0 || value >= LlmProviders.Count) return;
+        var provider = LlmProviders[value];
+        if (provider.Name == "custom") return;
+
+        if (string.IsNullOrWhiteSpace(PresetLlmBaseUrl) || LlmProviders.Any(p => p.BaseUrl == PresetLlmBaseUrl))
+        {
+            PresetLlmBaseUrl = provider.BaseUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(PresetLlmModel) || LlmProviders.Any(p => p.DefaultModel == PresetLlmModel))
+        {
+            PresetLlmModel = provider.DefaultModel;
+        }
+    }
+
     public bool IsIntervalEditable => !AdaptiveIntervalEnabled;
     public bool IsExecutorTypeEditable => !IsExecutorAuto;
 
@@ -136,6 +167,33 @@ public partial class AutopilotViewModel : ObservableObject
         if (SelectedPreset != null)
         {
             SelectedPreset.PersonaPrompt = value;
+            IsConfigDirty = true;
+        }
+    }
+
+    partial void OnPresetLlmApiKeyChanged(string value)
+    {
+        if (SelectedPreset != null)
+        {
+            SelectedPreset.LlmApiKey = string.IsNullOrWhiteSpace(value) ? null : value;
+            IsConfigDirty = true;
+        }
+    }
+
+    partial void OnPresetLlmBaseUrlChanged(string value)
+    {
+        if (SelectedPreset != null)
+        {
+            SelectedPreset.LlmBaseUrl = string.IsNullOrWhiteSpace(value) ? null : value;
+            IsConfigDirty = true;
+        }
+    }
+
+    partial void OnPresetLlmModelChanged(string value)
+    {
+        if (SelectedPreset != null)
+        {
+            SelectedPreset.LlmModel = string.IsNullOrWhiteSpace(value) ? null : value;
             IsConfigDirty = true;
         }
     }
@@ -234,6 +292,10 @@ public partial class AutopilotViewModel : ObservableObject
         IsExecutorAuto = preset.IsExecutorAuto;
         AgentName = preset.AgentName;
         PresetPersonaPrompt = preset.PersonaPrompt;
+        PresetLlmApiKey = preset.LlmApiKey ?? "";
+        PresetLlmBaseUrl = preset.LlmBaseUrl ?? "";
+        PresetLlmModel = preset.LlmModel ?? "";
+        PresetLlmProviderIndex = DetectProviderIndex(preset.LlmBaseUrl);
 
         IsConfigDirty = false;
 
@@ -270,6 +332,19 @@ public partial class AutopilotViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 根据 BaseUrl 匹配供应商预设索引
+    /// </summary>
+    private int DetectProviderIndex(string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl)) return 0;
+        for (var i = 1; i < LlmProviders.Count; i++)
+        {
+            if (LlmProviders[i].BaseUrl == baseUrl) return i;
+        }
+        return 0;
+    }
+
+    /// <summary>
     /// 将当前 UI 配置同步回 SelectedPreset
     /// </summary>
     private void SyncCurrentConfigToPreset()
@@ -285,6 +360,9 @@ public partial class AutopilotViewModel : ObservableObject
         SelectedPreset.IsExecutorAuto = IsExecutorAuto;
         SelectedPreset.AgentName = AgentName;
         SelectedPreset.PersonaPrompt = PresetPersonaPrompt;
+        SelectedPreset.LlmApiKey = string.IsNullOrWhiteSpace(PresetLlmApiKey) ? null : PresetLlmApiKey;
+        SelectedPreset.LlmBaseUrl = string.IsNullOrWhiteSpace(PresetLlmBaseUrl) ? null : PresetLlmBaseUrl;
+        SelectedPreset.LlmModel = string.IsNullOrWhiteSpace(PresetLlmModel) ? null : PresetLlmModel;
     }
 
     /// <summary>
@@ -300,6 +378,8 @@ public partial class AutopilotViewModel : ObservableObject
             : (Core.Models.ExecutorType)preset.SelectedExecutorType;
         _autopilot.AgentName = preset.AgentName;
         _autopilot.PersonaPrompt = preset.PersonaPrompt;
+
+        _autopilot.ApplyPresetLlmConfig(preset.LlmApiKey, preset.LlmBaseUrl, preset.LlmModel);
     }
 
     /// <summary>

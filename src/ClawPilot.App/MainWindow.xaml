@@ -669,6 +669,46 @@
                                     </StackPanel>
                                 </Border>
 
+                                <!-- 独立 LLM 配置 -->
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="🔑 独立 LLM 配置" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,4"/>
+                                        <TextBlock Text="留空则使用全局默认 LLM 配置，填写后此编排者使用独立的 LLM Key" FontSize="11" Foreground="#6a7b88" Margin="0,0,0,8"/>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Provider" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <ComboBox SelectedIndex="{Binding AutopilotVm.PresetLlmProviderIndex}" FontSize="12" Padding="8,6" Grid.Column="1" ItemsSource="{Binding AutopilotVm.LlmProviders}" DisplayMemberPath="DisplayName" Style="{StaticResource DarkComboBoxStyle}"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="API Key" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <PasswordBox x:Name="PresetApiKeyBox" FontSize="12" Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="12,6" Grid.Column="1" PasswordChanged="PresetApiKeyBox_PasswordChanged"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Base URL" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding AutopilotVm.PresetLlmBaseUrl, UpdateSourceTrigger=PropertyChanged}" FontSize="12" Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="12,6" Grid.Column="1"/>
+                                        </Grid>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Model" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <TextBox Text="{Binding AutopilotVm.PresetLlmModel, UpdateSourceTrigger=PropertyChanged}" FontSize="12" Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="12,6" Grid.Column="1"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
                                 <!-- 白板 + 历史 分栏 -->
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -740,6 +780,11 @@
                                 <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
                                     <StackPanel>
                                         <TextBlock Text="LLM Provider 配置" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Provider" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>
+                                            <ComboBox SelectedIndex="{Binding LlmProviderIndex}" Grid.Column="1" Padding="8,6" FontSize="13" ItemsSource="{Binding LlmProviders}" DisplayMemberPath="DisplayName" Style="{StaticResource DarkComboBoxStyle}"/>
+                                        </Grid>
                                         <Grid Margin="0,0,0,8">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="API Key" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center"/>

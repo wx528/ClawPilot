@@ -260,6 +260,7 @@ namespace ClawPilot.App
             services.AddSingleton(sp => new LlmDecisionEngine(
                 sp.GetRequiredService<ILlmClient>(),
                 sp.GetService<ILogger<LlmDecisionEngine>>()));
+            services.AddSingleton<LlmClientFactory>();
             services.AddSingleton(sp =>
             {
                 var settings = LoadLlmSettings();
@@ -267,7 +268,8 @@ namespace ClawPilot.App
                     sp.GetRequiredService<TaskQueueService>(),
                     sp.GetRequiredService<OrchestratorStorageService>(),
                     sp.GetRequiredService<LlmDecisionEngine>(),
-                    sp.GetService<ILogger<AutopilotOrchestrator>>());
+                    sp.GetService<ILogger<AutopilotOrchestrator>>(),
+                    sp.GetRequiredService<LlmClientFactory>());
                 autopilot.ExecutorType = (ClawPilot.Core.Models.ExecutorType)settings.ExecutorType;
                 autopilot.Mode = (ClawPilot.Core.Models.AutopilotMode)settings.AutopilotMode;
 
@@ -397,14 +399,51 @@ namespace ClawPilot.App
                 System.Diagnostics.Debug.WriteLine($"读取 settings.json 失败: {ex.Message}");
             }
 
-            // 回退到环境变量
-            return new LlmSettings
+            var fallback = new LlmSettings
             {
                 ApiKey = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_API_KEY") ?? "",
-                BaseUrl = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_BASE_URL") ?? "https://api.deepseek.com",
-                Model = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_MODEL") ?? "deepseek-chat",
+                BaseUrl = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_BASE_URL") ?? "",
+                Model = Environment.GetEnvironmentVariable("CLAWPILOT_LLM_MODEL") ?? "",
                 DaemonMaxConcurrency = 1
             };
+
+            if (!File.Exists(SettingsPath))
+            {
+                EnsureSettingsTemplate();
+            }
+
+            return fallback;
+        }
+
+        private static void EnsureSettingsTemplate()
+        {
+            try
+            {
+                Directory.CreateDirectory(DataDir);
+                var template = @"{
+  ""ApiKey"": """",
+  ""BaseUrl"": """",
+  ""Model"": """",
+  ""OpenClawTimeoutSeconds"": 600,
+  ""AutopilotIntervalMinutes"": 60,
+  ""AdaptiveIntervalEnabled"": false,
+  ""AutopilotAgentName"": ""main"",
+  ""DaemonMaxConcurrency"": 1,
+  ""ExecutorType"": ""OpenClaw"",
+  ""AutopilotMode"": ""PlanAndExecute"",
+  ""HermesCommandPath"": """",
+  ""KimiCodeCommandPath"": ""kimi.exe"",
+  ""CodeBuddyCommandPath"": ""codebuddy"",
+  ""AiderCommandPath"": ""aider"",
+  ""CodexCommandPath"": ""codex"",
+  ""QwenCodeCommandPath"": ""qwen-code""
+}";
+                File.WriteAllText(SettingsPath, template);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"创建 settings.json 模板失败: {ex.Message}");
+            }
         }
 
         public void ShowMainWindow()
@@ -457,8 +496,8 @@ namespace ClawPilot.App
     public class LlmSettings
     {
         public string ApiKey { get; set; } = "";
-        public string BaseUrl { get; set; } = "https://api.deepseek.com";
-        public string Model { get; set; } = "deepseek-chat";
+        public string BaseUrl { get; set; } = "";
+        public string Model { get; set; } = "";
         public int OpenClawTimeoutSeconds { get; set; } = 600;
         public int AutopilotIntervalMinutes { get; set; } = 60;
         public bool AdaptiveIntervalEnabled { get; set; } = false;
@@ -466,7 +505,7 @@ namespace ClawPilot.App
         public int DaemonMaxConcurrency { get; set; } = 1;
         public ExecutorType ExecutorType { get; set; } = ExecutorType.OpenClaw;
         public AutopilotMode AutopilotMode { get; set; } = AutopilotMode.PlanAndExecute;
-        public string HermesCommandPath { get; set; } = @"D:\agents\hermes-agent\hermes.ps1";
+        public string HermesCommandPath { get; set; } = "";
         public string KimiCodeCommandPath { get; set; } = "kimi.exe";
         public string? KimiCodeWorkDir { get; set; }
         public int KimiCodeMaxStepsPerTurn { get; set; } = 100;

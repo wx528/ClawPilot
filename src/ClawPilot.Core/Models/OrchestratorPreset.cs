@@ -25,6 +25,11 @@ public class OrchestratorPreset
     // LLM 人格（影响编排策略）
     public string PersonaPrompt { get; set; } = "";
 
+    // 独立 LLM 配置（留空则使用全局默认）
+    public string? LlmApiKey { get; set; }
+    public string? LlmBaseUrl { get; set; }
+    public string? LlmModel { get; set; }
+
     /// <summary>
     /// 创建内置预设列表
     /// </summary>
