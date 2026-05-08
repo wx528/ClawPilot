@@ -221,8 +221,7 @@ namespace ClawPilot.App
                     YesAlways = settings.QwenCodeYesAlways,
                     Model = settings.QwenCodeModel
                 };
-                var daemon = new DaemonService(
-                    sp.GetRequiredService<TaskQueueService>(),
+                var registry = new ExecutorRegistry(
                     sp.GetRequiredService<OpenClawExecutor>(),
                     hermesExecutor,
                     kimiCodeExecutor,
@@ -230,6 +229,15 @@ namespace ClawPilot.App
                     aiderExecutor,
                     codexExecutor,
                     qwenCodeExecutor,
+                    sp.GetService<ILogger<ExecutorRegistry>>());
+                return registry;
+            });
+            services.AddSingleton(sp =>
+            {
+                var settings = LoadLlmSettings();
+                var daemon = new DaemonService(
+                    sp.GetRequiredService<TaskQueueService>(),
+                    sp.GetRequiredService<ExecutorRegistry>(),
                     sp.GetService<ILogger<DaemonService>>());
                 daemon.ExecutorTimeoutSeconds = settings.OpenClawTimeoutSeconds;
                 daemon.MaxConcurrency = settings.DaemonMaxConcurrency;

@@ -16,10 +16,13 @@ namespace ClawPilot.Core.Services;
 /// 
 /// 接入新 CLI 工具只需继承此类，实现 2 个抽象成员即可
 /// </summary>
-public abstract class CliExecutorBase
+public abstract class CliExecutorBase : IExecutor
 {
     protected readonly ILogger Logger;
     protected readonly string CommandPath;
+
+    public abstract TaskType SupportedTaskType { get; }
+    public abstract string Name { get; }
 
     /// <summary>
     /// CLI 执行的工作目录
@@ -60,6 +63,44 @@ public abstract class CliExecutorBase
     {
         Logger = logger;
         CommandPath = commandPath;
+    }
+
+    async Task<ExecutorResult> IExecutor.ExecuteAsync(string agentName, string message, int timeoutSeconds, CancellationToken ct)
+    {
+        var (success, output, error) = await ExecuteAsync(message, timeoutSeconds);
+        return new ExecutorResult
+        {
+            Success = success,
+            Output = output,
+            Error = error,
+            ExitCode = success ? 0 : 1
+        };
+    }
+
+    public async Task<ExecutorHealthCheckResult> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var (available, version) = await CheckAvailabilityAsync();
+            return new ExecutorHealthCheckResult
+            {
+                IsHealthy = available,
+                ExecutorName = Name,
+                TaskType = SupportedTaskType,
+                Message = available ? $"{CommandName} CLI 可用" : $"{CommandName} CLI 未找到或不可用",
+                Version = string.IsNullOrEmpty(version) ? null : version
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ExecutorHealthCheckResult
+            {
+                IsHealthy = false,
+                ExecutorName = Name,
+                TaskType = SupportedTaskType,
+                Message = $"健康检查失败: {ex.Message}"
+            };
+        }
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using ClawPilot.Core.Models;
 using ClawPilot.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -8,6 +9,8 @@ public class CliExecutorBaseTests
     private class TestCliExecutor : CliExecutorBase
     {
         protected override string CommandName => "testcli";
+        public override TaskType SupportedTaskType => TaskType.OpenClaw;
+        public override string Name => "testcli";
 
         public TestCliExecutor(ILogger logger, string commandPath)
             : base(logger, commandPath) { }

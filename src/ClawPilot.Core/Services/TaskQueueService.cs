@@ -73,6 +73,8 @@ public class TaskQueueService
                 await EnsureColumnAsync(conn, "chain_round", "INTEGER DEFAULT 1");
             }
 
+            await EnsureTaskLogsTableAsync(conn);
+
             return true;
         }
         catch (Exception ex)
@@ -100,6 +102,157 @@ public class TaskQueueService
             cmd.CommandText = $"ALTER TABLE tasks ADD COLUMN {columnName} {columnDef}";
             await cmd.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task EnsureTaskLogsTableAsync(SqliteConnection conn)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name='task_logs'";
+        var exists = await cmd.ExecuteScalarAsync() != null;
+
+        if (!exists)
+        {
+            cmd.CommandText = """
+                CREATE TABLE task_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER NOT NULL,
+                    agent_name TEXT NOT NULL,
+                    task_type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    output TEXT,
+                    retry_count INTEGER DEFAULT 0,
+                    executor_name TEXT,
+                    duration_ms INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (task_id) REFERENCES tasks(id)
+                )
+                """;
+            await cmd.ExecuteNonQueryAsync();
+
+            cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_task_logs_task_id ON task_logs(task_id)";
+            await cmd.ExecuteNonQueryAsync();
+
+            cmd.CommandText = "CREATE INDEX IF NOT EXISTS idx_task_logs_created_at ON task_logs(created_at)";
+            await cmd.ExecuteNonQueryAsync();
+        }
+        else
+        {
+            await EnsureLogColumnAsync(conn, "executor_name", "TEXT");
+            await EnsureLogColumnAsync(conn, "duration_ms", "INTEGER");
+        }
+    }
+
+    private static async Task EnsureLogColumnAsync(SqliteConnection conn, string columnName, string columnDef)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info(task_logs)";
+        var columns = new HashSet<string>();
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                columns.Add(reader.GetString(1));
+            }
+        }
+
+        if (!columns.Contains(columnName))
+        {
+            cmd.CommandText = $"ALTER TABLE task_logs ADD COLUMN {columnName} {columnDef}";
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    // ==================== 任务日志 ====================
+
+    public async Task<long> AppendTaskLogAsync(int taskId, string agentName, string taskType, string status,
+        string? output = null, int retryCount = 0, string? executorName = null, long? durationMs = null)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO task_logs (task_id, agent_name, task_type, status, output, retry_count, executor_name, duration_ms)
+            VALUES (@taskId, @agentName, @taskType, @status, @output, @retryCount, @executorName, @durationMs);
+            SELECT last_insert_rowid();
+            """;
+        cmd.Parameters.AddWithValue("@taskId", taskId);
+        cmd.Parameters.AddWithValue("@agentName", agentName);
+        cmd.Parameters.AddWithValue("@taskType", taskType);
+        cmd.Parameters.AddWithValue("@status", status);
+        cmd.Parameters.AddWithValue("@output", (object?)output ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@retryCount", retryCount);
+        cmd.Parameters.AddWithValue("@executorName", (object?)executorName ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@durationMs", (object?)durationMs ?? DBNull.Value);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return Convert.ToInt64(result);
+    }
+
+    public async Task<List<TaskLogEntry>> GetTaskLogsAsync(int taskId, int limit = 50)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM task_logs WHERE task_id = @taskId ORDER BY created_at DESC LIMIT @limit";
+        cmd.Parameters.AddWithValue("@taskId", taskId);
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        var logs = new List<TaskLogEntry>();
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            logs.Add(ReadTaskLog(reader));
+        }
+        return logs;
+    }
+
+    public async Task<List<TaskLogEntry>> GetRecentLogsAsync(int limit = 100)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM task_logs ORDER BY created_at DESC LIMIT @limit";
+        cmd.Parameters.AddWithValue("@limit", limit);
+
+        var logs = new List<TaskLogEntry>();
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            logs.Add(ReadTaskLog(reader));
+        }
+        return logs;
+    }
+
+    public async Task<int> DeleteOldLogsAsync(int keepDays = 30)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "DELETE FROM task_logs WHERE created_at < datetime('now', @interval)";
+        cmd.Parameters.AddWithValue("@interval", $"-{keepDays} days");
+
+        return await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static TaskLogEntry ReadTaskLog(Microsoft.Data.Sqlite.SqliteDataReader reader)
+    {
+        return new TaskLogEntry
+        {
+            Id = reader.GetInt32(reader.GetOrdinal("id")),
+            TaskId = reader.GetInt32(reader.GetOrdinal("task_id")),
+            AgentName = reader.GetString(reader.GetOrdinal("agent_name")),
+            TaskType = reader.GetString(reader.GetOrdinal("task_type")),
+            Status = reader.GetString(reader.GetOrdinal("status")),
+            Output = reader.IsDBNull(reader.GetOrdinal("output")) ? null : reader.GetString(reader.GetOrdinal("output")),
+            RetryCount = reader.GetInt32(reader.GetOrdinal("retry_count")),
+            ExecutorName = reader.IsDBNull(reader.GetOrdinal("executor_name")) ? null : reader.GetString(reader.GetOrdinal("executor_name")),
+            DurationMs = reader.IsDBNull(reader.GetOrdinal("duration_ms")) ? null : reader.GetInt64(reader.GetOrdinal("duration_ms")),
+            CreatedAt = reader.GetString(reader.GetOrdinal("created_at"))
+        };
     }
 
     // ==================== 添加任务 ====================
@@ -651,6 +804,12 @@ public class TaskQueueService
         if (chainRoundIdx >= 0 && !reader.IsDBNull(chainRoundIdx))
         {
             task.ChainRound = reader.GetInt32(chainRoundIdx);
+        }
+
+        var retryCountIdx = reader.GetOrdinal("retry_count");
+        if (retryCountIdx >= 0 && !reader.IsDBNull(retryCountIdx))
+        {
+            task.RetryCount = reader.GetInt32(retryCountIdx);
         }
 
         return Task.FromResult(task);

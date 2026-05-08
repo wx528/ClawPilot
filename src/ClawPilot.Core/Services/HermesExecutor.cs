@@ -8,15 +8,43 @@ namespace ClawPilot.Core.Services;
 /// <summary>
 /// Hermes 本地执行器
 /// </summary>
-public class HermesExecutor
+public class HermesExecutor : IExecutor
 {
     private readonly ILogger<HermesExecutor> _logger;
     private readonly string _commandPath;
+
+    public TaskType SupportedTaskType => TaskType.Hermes;
+    public string Name => "hermes";
 
     public HermesExecutor(ILogger<HermesExecutor> logger, string commandPath)
     {
         _logger = logger;
         _commandPath = commandPath;
+    }
+
+    async Task<ExecutorResult> IExecutor.ExecuteAsync(string agentName, string message, int timeoutSeconds, CancellationToken ct)
+    {
+        var (success, output, error) = await ExecuteAsync(message, timeoutSeconds);
+        return new ExecutorResult
+        {
+            Success = success,
+            Output = output,
+            Error = error,
+            ExitCode = success ? 0 : 1
+        };
+    }
+
+    public Task<ExecutorHealthCheckResult> HealthCheckAsync(CancellationToken ct = default)
+    {
+        var exists = File.Exists(_commandPath);
+        var result = new ExecutorHealthCheckResult
+        {
+            IsHealthy = exists,
+            ExecutorName = Name,
+            TaskType = SupportedTaskType,
+            Message = exists ? $"Hermes 脚本可用: {_commandPath}" : $"Hermes 脚本不存在: {_commandPath}"
+        };
+        return Task.FromResult(result);
     }
 
     /// <summary>

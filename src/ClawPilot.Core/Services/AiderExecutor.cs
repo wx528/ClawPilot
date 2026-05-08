@@ -6,6 +6,8 @@ namespace ClawPilot.Core.Services;
 public class AiderExecutor : CliExecutorBase
 {
     protected override string CommandName => "aider";
+    public override TaskType SupportedTaskType => TaskType.Aider;
+    public override string Name => "aider";
 
     public bool YesAlways { get; set; } = true;
     public bool NoAutoCommits { get; set; } = true;

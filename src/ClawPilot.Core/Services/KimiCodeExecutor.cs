@@ -15,6 +15,8 @@ namespace ClawPilot.Core.Services;
 public class KimiCodeExecutor : CliExecutorBase
 {
     protected override string CommandName => "kimi";
+    public override TaskType SupportedTaskType => TaskType.KimiCode;
+    public override string Name => "kimicode";
 
     public KimiCodeExecutor(ILogger<KimiCodeExecutor> logger, string commandPath)
         : base(logger, commandPath)

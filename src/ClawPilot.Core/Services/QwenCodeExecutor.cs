@@ -6,6 +6,8 @@ namespace ClawPilot.Core.Services;
 public class QwenCodeExecutor : CliExecutorBase
 {
     protected override string CommandName => "qwen-code";
+    public override TaskType SupportedTaskType => TaskType.QwenCode;
+    public override string Name => "qwencode";
 
     public bool YesAlways { get; set; } = true;
     public string? Model { get; set; }

@@ -6,6 +6,8 @@ namespace ClawPilot.Core.Services;
 public class CodexExecutor : CliExecutorBase
 {
     protected override string CommandName => "codex";
+    public override TaskType SupportedTaskType => TaskType.Codex;
+    public override string Name => "codex";
 
     public string ApprovalMode { get; set; } = "full-auto";
     public string? Model { get; set; }

@@ -9,15 +9,82 @@ namespace ClawPilot.Core.Services;
 /// OpenClaw 执行器 — 通过 CLI 命令调用 OpenClaw
 /// 使用 cmd.exe /C 执行，兼容 .cmd / .bat 等 PATH 中的脚本
 /// </summary>
-public class OpenClawExecutor
+public class OpenClawExecutor : IExecutor
 {
     private readonly string _cliCommand;
     private readonly ILogger? _logger;
+
+    public TaskType SupportedTaskType => TaskType.OpenClaw;
+    public string Name => "openclaw";
 
     public OpenClawExecutor(string cliCommand, ILogger? logger = null)
     {
         _cliCommand = cliCommand;
         _logger = logger;
+    }
+
+    async Task<ExecutorResult> IExecutor.ExecuteAsync(string agentName, string message, int timeoutSeconds, CancellationToken ct)
+    {
+        var (status, output, stderr, exitCode) = await ExecuteAsync(agentName, message, timeoutSeconds, ct);
+        return new ExecutorResult
+        {
+            Success = status == "success",
+            Output = output,
+            Error = stderr,
+            ExitCode = exitCode
+        };
+    }
+
+    public async Task<ExecutorHealthCheckResult> HealthCheckAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("cmd.exe")
+            {
+                Arguments = $"/C {_cliCommand} --version",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+            var output = await process.StandardOutput.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode == 0)
+            {
+                return new ExecutorHealthCheckResult
+                {
+                    IsHealthy = true,
+                    ExecutorName = Name,
+                    TaskType = SupportedTaskType,
+                    Message = "OpenClaw CLI 可用",
+                    Version = output.Trim()
+                };
+            }
+
+            return new ExecutorHealthCheckResult
+            {
+                IsHealthy = false,
+                ExecutorName = Name,
+                TaskType = SupportedTaskType,
+                Message = $"OpenClaw CLI 返回非零退出码: {process.ExitCode}"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ExecutorHealthCheckResult
+            {
+                IsHealthy = false,
+                ExecutorName = Name,
+                TaskType = SupportedTaskType,
+                Message = $"健康检查失败: {ex.Message}"
+            };
+        }
     }
 
     public async Task<(string Status, string Output, string Stderr, int ExitCode)> ExecuteAsync(string agentName, string message, int timeoutSeconds, CancellationToken ct)

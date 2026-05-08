@@ -186,6 +186,20 @@ public class AutopilotOrchestrator
         }
     }
 
+    public async Task<bool> ExecuteCycleOnceAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await ExecuteCycleAsync(ct);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "单次编排执行失败");
+            return false;
+        }
+    }
+
     public async Task RestartAsync(TimeSpan interval)
     {
         if (_isRunning)

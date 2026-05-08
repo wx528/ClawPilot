@@ -16,6 +16,8 @@ namespace ClawPilot.Core.Services;
 public class CodeBuddyExecutor : CliExecutorBase
 {
     protected override string CommandName => "codebuddy";
+    public override TaskType SupportedTaskType => TaskType.CodeBuddy;
+    public override string Name => "codebuddy";
 
     /// <summary>
     /// 是否跳过权限确认（无人值守必需，对应 --dangerously-skip-permissions）
