@@ -53,7 +53,11 @@ public class TaskQueueService
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         task_type TEXT DEFAULT 'openclaw',
-                        source TEXT DEFAULT 'user'
+                        source TEXT DEFAULT 'user',
+                        retry_count INTEGER DEFAULT 0,
+                        depends_on_task_id INTEGER DEFAULT NULL,
+                        chain_id TEXT DEFAULT NULL,
+                        chain_round INTEGER DEFAULT 1
                     )
                     """;
                 await cmd.ExecuteNonQueryAsync();
@@ -64,6 +68,9 @@ public class TaskQueueService
                 await EnsureColumnAsync(conn, "task_type", "TEXT DEFAULT 'openclaw'");
                 await EnsureColumnAsync(conn, "source", "TEXT DEFAULT 'user'");
                 await EnsureColumnAsync(conn, "retry_count", "INTEGER DEFAULT 0");
+                await EnsureColumnAsync(conn, "depends_on_task_id", "INTEGER DEFAULT NULL");
+                await EnsureColumnAsync(conn, "chain_id", "TEXT DEFAULT NULL");
+                await EnsureColumnAsync(conn, "chain_round", "INTEGER DEFAULT 1");
             }
 
             return true;
@@ -98,7 +105,8 @@ public class TaskQueueService
     // ==================== 添加任务 ====================
 
     public async Task<OperationResult> AddTaskAsync(string message, string agentName = "main",
-        TaskType taskType = TaskType.OpenClaw, TaskSource source = TaskSource.User)
+        TaskType taskType = TaskType.OpenClaw, TaskSource source = TaskSource.User,
+        int? dependsOnTaskId = null, string? chainId = null, int chainRound = 1)
     {
         _logger?.LogDebug("添加任务，代理: {AgentName}，消息: {Message}，类型: {TaskType}，来源: {Source}", 
             agentName, message, taskType, source);
@@ -116,14 +124,17 @@ public class TaskQueueService
             using var cmd = conn.CreateCommand();
             cmd.Transaction = transaction;
             cmd.CommandText = """
-                INSERT INTO tasks (agent_name, message, status, task_type, source)
-                VALUES (@agentName, @message, 'pending', @taskType, @source);
+                INSERT INTO tasks (agent_name, message, status, task_type, source, depends_on_task_id, chain_id, chain_round)
+                VALUES (@agentName, @message, 'pending', @taskType, @source, @dependsOnTaskId, @chainId, @chainRound);
                 SELECT last_insert_rowid();
                 """;
             cmd.Parameters.AddWithValue("@agentName", agentName);
             cmd.Parameters.AddWithValue("@message", message);
             cmd.Parameters.AddWithValue("@taskType", taskType.ToString().ToLower());
             cmd.Parameters.AddWithValue("@source", source.ToString().ToLower());
+            cmd.Parameters.AddWithValue("@dependsOnTaskId", dependsOnTaskId.HasValue ? (object)dependsOnTaskId.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@chainId", (object?)chainId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@chainRound", chainRound);
 
             var taskId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
             await transaction.CommitAsync();
@@ -166,6 +177,7 @@ public class TaskQueueService
 
     /// <summary>
     /// 获取下一个 pending 任务并原子性地锁定为 running
+    /// 跳过有未完成依赖的任务（depends_on_task_id 指向的任务必须 success）
     /// </summary>
     public async Task<TaskItem?> GetNextPendingAsync()
     {
@@ -183,7 +195,13 @@ public class TaskQueueService
         {
             using var cmd = conn.CreateCommand();
             cmd.Transaction = transaction;
-            cmd.CommandText = "SELECT * FROM tasks WHERE status = 'pending' ORDER BY id LIMIT 1";
+            cmd.CommandText = """
+                SELECT * FROM tasks 
+                WHERE status = 'pending' 
+                  AND (depends_on_task_id IS NULL 
+                       OR EXISTS (SELECT 1 FROM tasks dep WHERE dep.id = tasks.depends_on_task_id AND dep.status = 'success'))
+                ORDER BY id LIMIT 1
+                """;
 
             using var reader = await cmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync())
@@ -293,6 +311,57 @@ public class TaskQueueService
     public async Task<List<TaskItem>> GetRecentTasksAsync(int hours = 1)
     {
         return await ListTasksAsync(timeRange: $"-{hours} hours");
+    }
+
+    public async Task<List<TaskItem>> GetTasksByChainIdAsync(string chainId)
+    {
+        var results = new List<TaskItem>();
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM tasks WHERE chain_id = @chainId ORDER BY id ASC";
+            cmd.Parameters.AddWithValue("@chainId", chainId);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                results.Add(await FormatTaskAsync(reader));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "按 chain_id 查询任务失败");
+        }
+
+        return results;
+    }
+
+    public async Task<TaskItem?> GetTaskByIdAsync(int taskId)
+    {
+        using var conn = GetConnection();
+        await conn.OpenAsync();
+
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT * FROM tasks WHERE id = @id";
+            cmd.Parameters.AddWithValue("@id", taskId);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return await FormatTaskAsync(reader);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "按 ID 查询任务失败");
+        }
+
+        return null;
     }
 
     // ==================== 统计 ====================
@@ -563,6 +632,25 @@ public class TaskQueueService
             {
                 task.Source = source;
             }
+        }
+
+        // 依赖链字段
+        var dependsOnIdx = reader.GetOrdinal("depends_on_task_id");
+        if (dependsOnIdx >= 0 && !reader.IsDBNull(dependsOnIdx))
+        {
+            task.DependsOnTaskId = reader.GetInt32(dependsOnIdx);
+        }
+
+        var chainIdIdx = reader.GetOrdinal("chain_id");
+        if (chainIdIdx >= 0 && !reader.IsDBNull(chainIdIdx))
+        {
+            task.ChainId = reader.GetString(chainIdIdx);
+        }
+
+        var chainRoundIdx = reader.GetOrdinal("chain_round");
+        if (chainRoundIdx >= 0 && !reader.IsDBNull(chainRoundIdx))
+        {
+            task.ChainRound = reader.GetInt32(chainRoundIdx);
         }
 
         return Task.FromResult(task);

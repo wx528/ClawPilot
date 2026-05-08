@@ -78,3 +78,7 @@ issues/
 # test
 _test/
 ClawPilot-v*.zip
+
+
+# plan
+_plan/

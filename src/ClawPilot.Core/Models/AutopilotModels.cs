@@ -67,6 +67,45 @@ public class AutopilotTaskToAdd
     public string TaskType { get; set; } = "openclaw";
     public string Priority { get; set; } = "normal";
     public string Reason { get; set; } = "";
+    public int? DependsOnTaskId { get; set; }
+    public string? ChainId { get; set; }
+    public int ChainRound { get; set; } = 1;
+}
+
+/// <summary>
+/// 审核结果 — 解析 reviewer 任务的输出
+/// </summary>
+public class ReviewResult
+{
+    public bool Passed { get; set; }
+    public string Summary { get; set; } = "";
+    public List<ReviewCheckItem> CheckItems { get; set; } = [];
+    public List<string> Issues { get; set; } = [];
+    public string? RawOutput { get; set; }
+}
+
+/// <summary>
+/// 审核检查项
+/// </summary>
+public class ReviewCheckItem
+{
+    public string Name { get; set; } = "";
+    public bool Passed { get; set; }
+    public string? Detail { get; set; }
+}
+
+/// <summary>
+/// 任务链状态 — 跟踪 coder→reviewer 闭环
+/// </summary>
+public class TaskChainState
+{
+    public string ChainId { get; set; } = "";
+    public int CurrentRound { get; set; } = 1;
+    public int MaxRounds { get; set; } = 3;
+    public string Status { get; set; } = "active";
+    public string? OriginalTaskMessage { get; set; }
+    public string? LastReviewSummary { get; set; }
+    public List<int> TaskIds { get; set; } = [];
 }
 
 /// <summary>

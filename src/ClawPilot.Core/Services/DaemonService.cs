@@ -14,6 +14,9 @@ public class DaemonService
     private readonly HermesExecutor _hermesExecutor;
     private readonly KimiCodeExecutor _kimiCodeExecutor;
     private readonly CodeBuddyExecutor _codeBuddyExecutor;
+    private readonly AiderExecutor _aiderExecutor;
+    private readonly CodexExecutor _codexExecutor;
+    private readonly QwenCodeExecutor _qwenCodeExecutor;
     private readonly ILogger? _logger;
 
     private CancellationTokenSource? _cts;
@@ -98,13 +101,16 @@ public class DaemonService
     /// </summary>
     public int MaxRetries { get; set; } = 3;
 
-    public DaemonService(TaskQueueService taskQueue, OpenClawExecutor openClawExecutor, HermesExecutor hermesExecutor, KimiCodeExecutor kimiCodeExecutor, CodeBuddyExecutor codeBuddyExecutor, ILogger? logger = null)
+    public DaemonService(TaskQueueService taskQueue, OpenClawExecutor openClawExecutor, HermesExecutor hermesExecutor, KimiCodeExecutor kimiCodeExecutor, CodeBuddyExecutor codeBuddyExecutor, AiderExecutor aiderExecutor, CodexExecutor codexExecutor, QwenCodeExecutor qwenCodeExecutor, ILogger? logger = null)
     {
         _taskQueue = taskQueue;
         _openClawExecutor = openClawExecutor;
         _hermesExecutor = hermesExecutor;
         _kimiCodeExecutor = kimiCodeExecutor;
         _codeBuddyExecutor = codeBuddyExecutor;
+        _aiderExecutor = aiderExecutor;
+        _codexExecutor = codexExecutor;
+        _qwenCodeExecutor = qwenCodeExecutor;
         _logger = logger;
     }
 
@@ -270,6 +276,30 @@ public class DaemonService
                 status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
                 exitCode = success ? 0 : 1;
             }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.Aider)
+            {
+                (var success, output, stderr) = await _aiderExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+                exitCode = success ? 0 : 1;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.Codex)
+            {
+                (var success, output, stderr) = await _codexExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+                exitCode = success ? 0 : 1;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.QwenCode)
+            {
+                (var success, output, stderr) = await _qwenCodeExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+                exitCode = success ? 0 : 1;
+            }
             else
             {
                 status = ClawPilot.Core.Models.TaskStatus.Failed;
@@ -418,6 +448,27 @@ public class DaemonService
                 
                 status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
             }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.Aider)
+            {
+                (var success, output, _) = await _aiderExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.Codex)
+            {
+                (var success, output, _) = await _codexExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
+            else if (task.TaskType == ClawPilot.Core.Models.TaskType.QwenCode)
+            {
+                (var success, output, _) = await _qwenCodeExecutor.ExecuteAsync(
+                    task.Message, ExecutorTimeoutSeconds);
+                
+                status = success ? ClawPilot.Core.Models.TaskStatus.Success : ClawPilot.Core.Models.TaskStatus.Failed;
+            }
             else
             {
                 status = ClawPilot.Core.Models.TaskStatus.Failed;
@@ -460,7 +511,7 @@ public class DaemonService
             StatsFailed = StatsFailed,
             CurrentTaskInfo = CurrentTaskInfo,
             ExecutionHistory = historySnapshot,
-            RegisteredExecutors = ["openclaw", "hermes", "kimicode", "codebuddy"],
+            RegisteredExecutors = ["openclaw", "hermes", "kimicode", "codebuddy", "aider", "codex", "qwencode"],
         };
     }
 

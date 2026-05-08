@@ -18,6 +18,9 @@ public class TaskItem : INotifyPropertyChanged
     private int _retryCount = 0;
     private DateTime _createdAt = DateTime.Now;
     private DateTime _updatedAt = DateTime.Now;
+    private int? _dependsOnTaskId;
+    private string? _chainId;
+    private int _chainRound = 1;
 
     public int Id
     {
@@ -77,6 +80,24 @@ public class TaskItem : INotifyPropertyChanged
     {
         get => _updatedAt;
         set { _updatedAt = value; OnPropertyChanged(); }
+    }
+
+    public int? DependsOnTaskId
+    {
+        get => _dependsOnTaskId;
+        set { _dependsOnTaskId = value; OnPropertyChanged(); }
+    }
+
+    public string? ChainId
+    {
+        get => _chainId;
+        set { _chainId = value; OnPropertyChanged(); }
+    }
+
+    public int ChainRound
+    {
+        get => _chainRound;
+        set { _chainRound = value; OnPropertyChanged(); }
     }
 
     // 计算属性

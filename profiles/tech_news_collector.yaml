@@ -25,9 +25,6 @@ default_decision_mode: llm_only
 schedule_cron: "0 8,18 * * *"
 max_daily_tasks: 10
 
-draft_auto_approve: true
-draft_auto_approve_after_seconds: 60
-
 tags:
   - "tech"
   - "news"
@@ -63,35 +60,6 @@ persona_presets:
     tags:
       - "writing"
       - "tech"
-
-plan_presets:
-  - name: morning_tech_brief
-    description: "早间科技简报"
-    schedule_cron: "0 8 * * *"
-    items:
-      - persona_name: tech_news_collector
-        message: "搜集过去12小时 AI 和大模型领域的最新重要动态"
-        task_type: openclaw
-        priority: high
-      - persona_name: news_analyst
-        message: "对搜集到的新闻进行分析，提炼关键要点"
-        task_type: openclaw
-        priority: normal
-        depends_on: [0]
-
-  - name: evening_tech_brief
-    description: "晚间科技简报"
-    schedule_cron: "0 18 * * *"
-    items:
-      - persona_name: tech_news_collector
-        message: "搜集今日科技领域的重要发布和更新"
-        task_type: openclaw
-        priority: high
-      - persona_name: newsletter_writer
-        message: "将今日收集到的科技资讯整理成一份简明简报"
-        task_type: openclaw
-        priority: normal
-        depends_on: [0]
 
 prompt_presets:
   - name: news_collection

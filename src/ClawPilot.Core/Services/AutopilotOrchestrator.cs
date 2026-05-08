@@ -277,6 +277,13 @@ public class AutopilotOrchestrator
 
             _logger?.LogInformation("查询到上一小时 {Count} 个编排任务", recentResults.Count);
 
+            // 3.5 闭环审核处理：检查 reviewer 任务结果，FAIL 则自动注入修改任务
+            var chainTasksScheduled = await ProcessReviewChainsAsync(recentResults);
+            if (chainTasksScheduled > 0)
+            {
+                _logger?.LogInformation("闭环审核处理：自动注入 {Count} 个修改任务", chainTasksScheduled);
+            }
+
             // 4. 调用 LLM 决策
             var elapsed = ElapsedSinceStart;
             var nextWake = DateTime.Now + Interval;
@@ -305,7 +312,10 @@ public class AutopilotOrchestrator
                     message: task.Message,
                     agentName: AgentName,
                     taskType: taskType,
-                    source: TaskSource.Orchestrator);
+                    source: TaskSource.Orchestrator,
+                    dependsOnTaskId: task.DependsOnTaskId,
+                    chainId: task.ChainId,
+                    chainRound: task.ChainRound);
 
                 if (result.Success)
                 {
@@ -421,6 +431,9 @@ public class AutopilotOrchestrator
                 ExecutorType.Hermes => TaskType.Hermes,
                 ExecutorType.KimiCode => TaskType.KimiCode,
                 ExecutorType.CodeBuddy => TaskType.CodeBuddy,
+                ExecutorType.Aider => TaskType.Aider,
+                ExecutorType.Codex => TaskType.Codex,
+                ExecutorType.QwenCode => TaskType.QwenCode,
                 _ => TaskType.OpenClaw
             };
         }
@@ -431,6 +444,9 @@ public class AutopilotOrchestrator
             "hermes" => TaskType.Hermes,
             "kimicode" or "kimi" => TaskType.KimiCode,
             "codebuddy" or "code_buddy" => TaskType.CodeBuddy,
+            "aider" => TaskType.Aider,
+            "codex" => TaskType.Codex,
+            "qwencode" or "qwen" or "qwen-code" => TaskType.QwenCode,
             _ => TaskType.OpenClaw
         };
     }
@@ -473,5 +489,97 @@ public class AutopilotOrchestrator
     {
         if (string.IsNullOrEmpty(text)) return "";
         return text.Length <= maxLength ? text : text[..maxLength] + "...";
+    }
+
+    private const int MaxChainRounds = 3;
+
+    private async Task<int> ProcessReviewChainsAsync(List<TaskItem> recentResults)
+    {
+        var scheduledCount = 0;
+
+        var completedReviewers = recentResults
+            .Where(t => t.Status == Models.TaskStatus.Success
+                     && t.Source == TaskSource.Reviewer
+                     && !string.IsNullOrWhiteSpace(t.ChainId))
+            .ToList();
+
+        foreach (var reviewerTask in completedReviewers)
+        {
+            var reviewResult = _llmEngine.ParseReviewOutput(reviewerTask.Output);
+
+            _logger?.LogInformation(
+                "审核结果解析: ChainId={ChainId}, Round={Round}, Passed={Passed}, Issues={IssueCount}",
+                reviewerTask.ChainId, reviewerTask.ChainRound, reviewResult.Passed, reviewResult.Issues.Count);
+
+            if (reviewResult.Passed)
+            {
+                var whiteboardUpdate = $"✅ 审核通过 (Chain: {reviewerTask.ChainId}, Round: {reviewerTask.ChainRound})\n" +
+                                      $"摘要: {reviewResult.Summary}";
+                await _storage.UpdateWhiteboardAsync(whiteboardUpdate);
+                _logger?.LogInformation("审核通过，白板已更新: ChainId={ChainId}", reviewerTask.ChainId);
+                continue;
+            }
+
+            if (reviewerTask.ChainRound >= MaxChainRounds)
+            {
+                var blockUpdate = $"🚫 审核闭环已达最大轮次 ({MaxChainRounds})，暂停任务链 (Chain: {reviewerTask.ChainId})\n" +
+                                  $"最后审核摘要: {reviewResult.Summary}\n" +
+                                  $"未解决问题: {string.Join("; ", reviewResult.Issues)}";
+                await _storage.UpdateWhiteboardAsync(blockUpdate);
+                _logger?.LogWarning("审核闭环已达最大轮次 {MaxRounds}，暂停: ChainId={ChainId}", MaxChainRounds, reviewerTask.ChainId);
+                continue;
+            }
+
+            var nextRound = reviewerTask.ChainRound + 1;
+            var issueList = reviewResult.Issues.Count > 0
+                ? string.Join("\n", reviewResult.Issues.Select((issue, i) => $"{i + 1}. {issue}"))
+                : reviewResult.Summary;
+
+            var coderMessage = $"根据审核反馈修改代码（第 {nextRound} 轮修改）\n\n" +
+                              $"审核未通过原因:\n{issueList}\n\n" +
+                              $"请针对以上问题进行修改。";
+
+            var coderTaskType = ResolveTaskType(null, ExecutorType);
+            var addResult = await _taskQueue.AddTaskAsync(
+                message: coderMessage,
+                agentName: AgentName,
+                taskType: coderTaskType,
+                source: TaskSource.Orchestrator,
+                dependsOnTaskId: reviewerTask.Id,
+                chainId: reviewerTask.ChainId,
+                chainRound: nextRound);
+
+            if (addResult.Success)
+            {
+                scheduledCount++;
+                _logger?.LogInformation(
+                    "审核未通过，已注入第 {Round} 轮修改任务: TaskId={TaskId}, ChainId={ChainId}",
+                    nextRound, addResult.TaskId, reviewerTask.ChainId);
+
+                var reviewerMessage = $"审核第 {nextRound} 轮修改结果\n\n" +
+                                     $"原始问题:\n{issueList}\n\n" +
+                                     $"请检查修改是否解决了以上问题。";
+
+                var reviewerTaskType = ResolveTaskType("hermes", ExecutorType.Auto);
+                var reviewerAddResult = await _taskQueue.AddTaskAsync(
+                    message: reviewerMessage,
+                    agentName: "reviewer",
+                    taskType: reviewerTaskType,
+                    source: TaskSource.Reviewer,
+                    dependsOnTaskId: addResult.TaskId!.Value,
+                    chainId: reviewerTask.ChainId,
+                    chainRound: nextRound);
+
+                if (reviewerAddResult.Success)
+                {
+                    scheduledCount++;
+                    _logger?.LogInformation(
+                        "已安排第 {Round} 轮审核任务: TaskId={TaskId}, ChainId={ChainId}",
+                        nextRound, reviewerAddResult.TaskId, reviewerTask.ChainId);
+                }
+            }
+        }
+
+        return scheduledCount;
     }
 }

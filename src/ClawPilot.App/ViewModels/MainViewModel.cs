@@ -15,7 +15,6 @@ namespace ClawPilot.App.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly TaskQueueService _taskQueue;
-    private readonly OrchestrationService _orchestrator;
     private readonly DaemonService _daemon;
     private readonly ProfileService _profileService;
     private readonly ILogger<MainViewModel> _logger;
@@ -31,9 +30,6 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isDaemonRunning;
-
-    [ObservableProperty]
-    private bool _isOrchestratorRunning;
 
     [ObservableProperty]
     private string _dataDirPath = "";
@@ -107,21 +103,18 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel(
         TaskQueueService taskQueue,
-        OrchestrationService orchestrator,
         DaemonService daemon,
         ProfileService profileService,
         AutopilotViewModel autopilotVm,
         ILogger<MainViewModel> logger)
     {
         _taskQueue = taskQueue;
-        _orchestrator = orchestrator;
         _daemon = daemon;
         _profileService = profileService;
         AutopilotVm = autopilotVm;
         _logger = logger;
 
         IsDaemonRunning = _daemon.IsRunning;
-        IsOrchestratorRunning = _orchestrator.IsRunning;
         DataDirPath = App.DataDir;
 
         LoadLlmSettings();
@@ -186,6 +179,9 @@ public partial class MainViewModel : ObservableObject
             1 => TaskType.Hermes,
             2 => TaskType.KimiCode,
             3 => TaskType.CodeBuddy,
+            4 => TaskType.Aider,
+            5 => TaskType.Codex,
+            6 => TaskType.QwenCode,
             _ => TaskType.OpenClaw
         };
 
@@ -323,32 +319,6 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ToggleOrchestrator()
-    {
-        await Task.CompletedTask;
-        try
-        {
-            if (IsOrchestratorRunning)
-            {
-                _orchestrator.Stop();
-                StatusText = "编排服务已停止";
-            }
-            else
-            {
-                await _orchestrator.StartAsync();
-                StatusText = "编排服务正在运行";
-            }
-
-            IsOrchestratorRunning = _orchestrator.IsRunning;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "编排服务操作失败");
-            MessageBox.Show($"编排服务操作失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    [RelayCommand]
     private async Task RunTaskOnce()
     {
         await Task.CompletedTask;
@@ -400,40 +370,6 @@ public partial class MainViewModel : ObservableObject
         {
             _logger.LogError(ex, "查看配置文件失败");
             MessageBox.Show($"查看配置文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    [RelayCommand]
-    private async Task LoadConfigFromFile()
-    {
-        try
-        {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "YAML 文件 (*.yaml;*.yml)|*.yaml;*.yml|所有文件 (*.*)|*.*",
-                Title = "选择配置文件"
-            };
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                var yamlContent = await File.ReadAllTextAsync(openFileDialog.FileName);
-                var result = await _orchestrator.LoadAndParseYamlAsync(yamlContent);
-
-                if (result.Success)
-                {
-                    MessageBox.Show($"配置文件加载成功，解析到 {result.GetData<int?>()} 个任务规范", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
-                    StatusText = "配置文件已加载";
-                }
-                else
-                {
-                    MessageBox.Show($"配置文件解析失败: {result.Error}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加载配置文件失败");
-            MessageBox.Show($"加载配置文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

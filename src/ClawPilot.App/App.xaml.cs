@@ -175,9 +175,6 @@ namespace ClawPilot.App
             // 核心服务
             services.AddSingleton(sp => new TaskQueueService(TasksDbPath, sp.GetService<ILogger<TaskQueueService>>()));
             services.AddSingleton(sp => new OpenClawExecutor("openclaw", sp.GetService<ILogger<OpenClawExecutor>>()));
-            services.AddSingleton(sp => new OrchestrationService(
-                sp.GetRequiredService<TaskQueueService>(),
-                sp.GetService<ILogger<OrchestrationService>>()));
             services.AddSingleton(sp =>
             {
                 var settings = LoadLlmSettings();
@@ -199,12 +196,40 @@ namespace ClawPilot.App
                     SkipPermissions = settings.CodeBuddySkipPermissions,
                     AllowedTools = settings.CodeBuddyAllowedTools
                 };
+                var aiderExecutor = new AiderExecutor(
+                    sp.GetService<ILogger<AiderExecutor>>(),
+                    settings.AiderCommandPath)
+                {
+                    WorkingDirectory = settings.AiderWorkDir,
+                    YesAlways = settings.AiderYesAlways,
+                    NoAutoCommits = settings.AiderNoAutoCommits,
+                    Model = settings.AiderModel
+                };
+                var codexExecutor = new CodexExecutor(
+                    sp.GetService<ILogger<CodexExecutor>>(),
+                    settings.CodexCommandPath)
+                {
+                    WorkingDirectory = settings.CodexWorkDir,
+                    ApprovalMode = settings.CodexApprovalMode,
+                    Model = settings.CodexModel
+                };
+                var qwenCodeExecutor = new QwenCodeExecutor(
+                    sp.GetService<ILogger<QwenCodeExecutor>>(),
+                    settings.QwenCodeCommandPath)
+                {
+                    WorkingDirectory = settings.QwenCodeWorkDir,
+                    YesAlways = settings.QwenCodeYesAlways,
+                    Model = settings.QwenCodeModel
+                };
                 var daemon = new DaemonService(
                     sp.GetRequiredService<TaskQueueService>(),
                     sp.GetRequiredService<OpenClawExecutor>(),
                     hermesExecutor,
                     kimiCodeExecutor,
                     codeBuddyExecutor,
+                    aiderExecutor,
+                    codexExecutor,
+                    qwenCodeExecutor,
                     sp.GetService<ILogger<DaemonService>>());
                 daemon.ExecutorTimeoutSeconds = settings.OpenClawTimeoutSeconds;
                 daemon.MaxConcurrency = settings.DaemonMaxConcurrency;
@@ -441,6 +466,19 @@ namespace ClawPilot.App
         public string? CodeBuddyWorkDir { get; set; }
         public bool CodeBuddySkipPermissions { get; set; } = true;
         public string? CodeBuddyAllowedTools { get; set; }
+        public string AiderCommandPath { get; set; } = "aider";
+        public string? AiderWorkDir { get; set; }
+        public bool AiderYesAlways { get; set; } = true;
+        public bool AiderNoAutoCommits { get; set; } = true;
+        public string? AiderModel { get; set; }
+        public string CodexCommandPath { get; set; } = "codex";
+        public string? CodexWorkDir { get; set; }
+        public string CodexApprovalMode { get; set; } = "full-auto";
+        public string? CodexModel { get; set; }
+        public string QwenCodeCommandPath { get; set; } = "qwen-code";
+        public string? QwenCodeWorkDir { get; set; }
+        public bool QwenCodeYesAlways { get; set; } = true;
+        public string? QwenCodeModel { get; set; }
         public List<OrchestratorPreset>? OrchestratorPresets { get; set; }
         public string? ActivePresetId { get; set; } = "general";
     }

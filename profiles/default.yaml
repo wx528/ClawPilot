@@ -34,9 +34,6 @@ default_decision_mode: fallback
 schedule_cron: "0 */2 * * *"
 max_daily_tasks: 50
 
-draft_auto_approve: false
-draft_auto_approve_after_seconds: 300
-
 tags:
   - "default"
   - "general"
@@ -77,29 +74,6 @@ persona_presets:
     max_concurrent: 1
     tags:
       - "analysis"
-
-plan_presets:
-  - name: morning_routine
-    description: "晨间例行任务"
-    schedule_cron: "0 8 * * *"
-    items:
-      - persona_name: main
-        message: "检查今日待办事项并给出优先级建议"
-        task_type: openclaw
-        priority: high
-      - persona_name: sys_monitor
-        message: "执行系统健康检查，汇报 CPU、内存、磁盘状态"
-        task_type: openclaw
-        priority: normal
-
-  - name: afternoon_summary
-    description: "午后总结任务"
-    schedule_cron: "0 14 * * 1-5"
-    items:
-      - persona_name: analyst
-        message: "总结上午收集到的信息，提炼关键要点"
-        task_type: openclaw
-        priority: normal
 
 prompt_presets:
   - name: daily_summary

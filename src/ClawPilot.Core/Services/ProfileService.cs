@@ -84,16 +84,11 @@ public class OrchestratorProfile
     public string ScheduleCron { get; set; } = "0 8 * * *";
     public int MaxDailyTasks { get; set; } = 20;
 
-    // 草案配置
-    public bool DraftAutoApprove { get; set; } = true;
-    public int DraftAutoApproveAfterSeconds { get; set; } = 300;
-
     // 元数据
     public List<string> Tags { get; set; } = [];
 
     // 预设资源
     public List<PersonaPreset> PersonaPresets { get; set; } = [];
-    public List<PlanPreset> PlanPresets { get; set; } = [];
     public List<PromptPreset> PromptPresets { get; set; } = [];
 }
 
@@ -106,24 +101,6 @@ public class PersonaPreset
     public string TaskType { get; set; } = "openclaw";
     public int MaxConcurrent { get; set; } = 1;
     public List<string> Tags { get; set; } = [];
-}
-
-public class PlanPreset
-{
-    public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
-    public string ScheduleCron { get; set; } = "0 8 * * *";
-    public List<PlanItemPreset> Items { get; set; } = [];
-}
-
-public class PlanItemPreset
-{
-    public string PersonaName { get; set; } = "";
-    public string Message { get; set; } = "";
-    public string TaskType { get; set; } = "openclaw";
-    public string Priority { get; set; } = "normal";
-    public string? ScheduledTime { get; set; }
-    public List<int> DependsOn { get; set; } = [];
 }
 
 public class PromptPreset

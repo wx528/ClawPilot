@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-09
+
+### Added
+
+#### 核心单元测试覆盖
+- **LlmDecisionEngine 测试** — 覆盖 JSON 解析、决策类型、优先级、白板截断、自适应间隔、Autopilot 决策等场景
+- **AutopilotOrchestrator 测试** — 覆盖生命周期、手动触发、编排周期、空周期回退、白板更新、自适应间隔、ResolveTaskType 映射
+- **OrchestratorStorageService 测试** — 覆盖目标管理、会话记录、白板操作、统计查询
+- **CliExecutorBase 测试** — 覆盖参数转义、路径解析、参数拼接
+- **审核报告解析测试** — 覆盖 PASS/FAIL/Emoji/中文/空输出/Issue 提取等场景
+- **新执行器参数构建测试** — Aider/Codex/QwenCode 各自的参数构建与默认值验证
+
+#### OrchestratorPreset 预设系统 UI 对接
+- **AutopilotViewModel** — 预设管理（增删改切换）、配置持久化、ExecutorType 联动
+- **MainWindow.xaml** — 预设下拉框、保存/重置按钮、配置脏检测
+
+#### e2e_reviewer 闭环运行时支持
+- **ReviewResult 模型** — 审核结果数据结构（Passed/Summary/CheckItems/Issues/RawOutput）
+- **TaskChainState 模型** — 任务链状态跟踪（ChainId/CurrentRound/MaxRounds/Status）
+- **LlmDecisionEngine.ParseReviewOutput** — 审核报告解析，支持 PASS/FAIL/✅/❌/通过/不通过等多种格式
+- **AutopilotOrchestrator.ProcessReviewChainsAsync** — 闭环编排逻辑：审核通过→标记完成，审核失败→自动安排下一轮 coder+reviewer
+- **TaskItem 依赖链字段** — depends_on_task_id/chain_id/chain_round，支持任务依赖和链式执行
+- **TaskQueueService 依赖查询** — GetNextPendingAsync 仅在依赖任务完成后才调度
+- **DaemonService 自适应轮询** — 有依赖任务时缩短轮询间隔加速执行
+
+#### Aider CLI 执行器
+- **AiderExecutor** — 开源代码辅助编程 CLI 执行器，安装方式 `pip install aider-chat`
+- **参数支持** — `--message`、`--yes-always`、`--no-auto-commits`、`--model`
+- **配置项** — `AiderCommandPath`（默认 `aider`）、`AiderWorkDir`、`AiderYesAlways`、`AiderNoAutoCommits`、`AiderModel`
+
+#### Codex CLI 执行器
+- **CodexExecutor** — OpenAI 官方终端编程助手 CLI 执行器，安装方式 `npm i -g @openai/codex`
+- **参数支持** — `-q`（quiet）、`--approval-mode`、`--model`
+- **配置项** — `CodexCommandPath`（默认 `codex`）、`CodexWorkDir`、`CodexApprovalMode`（默认 `full-auto`）、`CodexModel`
+
+#### Qwen Code CLI 执行器
+- **QwenCodeExecutor** — 阿里通义本地助手 CLI 执行器，安装方式 `pip install qwen-cli`
+- **参数支持** — `--message`、`--yes`、`--model`
+- **配置项** — `QwenCodeCommandPath`（默认 `qwen-code`）、`QwenCodeWorkDir`、`QwenCodeYesAlways`、`QwenCodeModel`
+
+#### 枚举扩展
+- `TaskType` 新增 `Aider`、`Codex`、`QwenCode`
+- `ExecutorType` 新增 `Aider`、`Codex`、`QwenCode`
+
+### Changed
+- **DaemonService** — 构造函数新增 Aider/Codex/QwenCode 执行器参数，执行分支覆盖所有 7 种任务类型
+- **AutopilotOrchestrator.ResolveTaskType** — 映射表扩展支持 Aider/Codex/QwenCode（含 Auto 模式的 LLM 返回值解析）
+- **RegisteredExecutors** — 从 4 种扩展到 7 种：`["openclaw", "hermes", "kimicode", "codebuddy", "aider", "codex", "qwencode"]`
+- **UI 下拉框** — 快捷操作页和自动驾驶页的执行器选择均新增 Aider/Codex/QwenCode 选项
+- **MainViewModel** — `SelectedTaskTypeIndex` 映射扩展到 7 种任务类型
+- **TaskQueueService** — 数据库建表语句包含依赖链字段，EnsureColumnAsync 自动迁移旧表
+
 ## [0.3.0] - 2026-05-05
 
 ### Added

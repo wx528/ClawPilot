@@ -1,6 +1,6 @@
 # ClawPilot — 多 Agent 统一调度平台
 
-🦞 一个通用的 AI Agent 统一调度与编排平台，支持 OpenClaw、Hermes、Kimi Code CLI、CodeBuddy Code 等多种执行后端，将任务编排、执行守护、草案审批等逻辑全部内置，开箱即用。
+🦞 一个通用的 AI Agent 统一调度与编排平台，支持 OpenClaw、Hermes、Kimi Code CLI、CodeBuddy Code、Aider、Codex、Qwen Code 等多种执行后端，将任务编排、执行守护、草案审批等逻辑全部内置，开箱即用。
 
 ## 特性
 
@@ -9,7 +9,9 @@
   - ✅ Hermes（本地 PowerShell 脚本）
   - ✅ Kimi Code CLI（月之暗面本地助手）
   - ✅ CodeBuddy Code（腾讯 AI 编程助手 CLI）
-  - 🔜 Qwen Code / Aider / Codex CLI（基于 CliExecutorBase 快速接入）
+  - ✅ Aider CLI（开源代码辅助编程）
+  - ✅ Codex CLI（OpenAI 终端编程助手）
+  - ✅ Qwen Code（阿里通义本地助手）
 
 - **通用 CLI 执行器架构** — `CliExecutorBase` 抽象基类封装 PATH 查找、进程管理、超时控制、编码修复等公共逻辑，新增执行器只需继承并实现 2 个成员
 
@@ -33,9 +35,9 @@
 | **Hermes** | 本地 PowerShell 脚本 | ✅ 稳定 | 内置 | 本地自动化脚本执行 |
 | **Kimi Code CLI** | 本地可执行文件 | ✅ 支持 | 官网下载 | Kimi 本地助手代码生成 |
 | **CodeBuddy Code** | 本地可执行文件 | ✅ 支持 | `npm i -g @tencent-ai/codebuddy-code` | 腾讯 AI 编程助手 |
-| Qwen Code | 本地可执行文件 | 🔜 待实现 | `pip install qwen-cli` | 阿里通义本地助手 |
-| Aider CLI | 本地可执行文件 | 🔜 待实现 | `pip install aider-chat` | 开源代码辅助编程 |
-| Codex CLI | 本地可执行文件 | 🔜 待实现 | `npm i -g @openai/codex` | OpenAI 终端编程助手 |
+| **Aider CLI** | 本地可执行文件 | ✅ 支持 | `pip install aider-chat` | 开源代码辅助编程 |
+| **Codex CLI** | 本地可执行文件 | ✅ 支持 | `npm i -g @openai/codex` | OpenAI 终端编程助手 |
+| **Qwen Code** | 本地可执行文件 | ✅ 支持 | `pip install qwen-cli` | 阿里通义本地助手 |
 
 ## 架构
 
@@ -65,6 +67,9 @@ ClawPilot (单进程 C# WPF)
         ├── HermesExecutor.cs — Hermes 本地脚本执行器
         ├── KimiCodeExecutor.cs — Kimi Code CLI 执行器 (extends CliExecutorBase)
         ├── CodeBuddyExecutor.cs — CodeBuddy Code CLI 执行器 (extends CliExecutorBase)
+        ├── AiderExecutor.cs — Aider CLI 执行器 (extends CliExecutorBase)
+        ├── CodexExecutor.cs — Codex CLI 执行器 (extends CliExecutorBase)
+        ├── QwenCodeExecutor.cs — Qwen Code CLI 执行器 (extends CliExecutorBase)
         ├── DaemonService.cs — 任务守护（动态选择执行器）
         ├── AutopilotOrchestrator.cs — LLM 编排器（定时 / 事件驱动）
         ├── LlmDecisionEngine.cs — LLM 决策引擎（Prompt 构建 / JSON 解析）

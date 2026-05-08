@@ -41,9 +41,6 @@ default_decision_mode: llm_only
 schedule_cron: "0 */1 * * *"
 max_daily_tasks: 30
 
-draft_auto_approve: true
-draft_auto_approve_after_seconds: 30
-
 tags:
   - "e2e"
   - "review"
@@ -122,19 +119,6 @@ persona_presets:
     tags:
       - "review"
       - "quality"
-
-plan_presets:
-  - name: code_and_review
-    description: "编程+审核闭环"
-    items:
-      - persona_name: coder
-        message: "按照需求完成编程任务"
-        task_type: codebuddy
-        priority: high
-      - persona_name: reviewer
-        message: "对编程产出进行端到端审核：截屏验证、代码检查、测试执行"
-        task_type: hermes
-        priority: high
 
 prompt_presets:
   - name: code_task

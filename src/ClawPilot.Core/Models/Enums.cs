@@ -20,7 +20,10 @@ public enum TaskType
     LangGraph,
     Hermes,
     KimiCode,
-    CodeBuddy
+    CodeBuddy,
+    Aider,
+    Codex,
+    QwenCode
 }
 
 /// <summary>
@@ -52,6 +55,9 @@ public enum ExecutorType
     Hermes,
     KimiCode,
     CodeBuddy,
+    Aider,
+    Codex,
+    QwenCode,
     Auto
 }
 
@@ -62,51 +68,4 @@ public enum AutopilotMode
 {
     PlanAndExecute,
     ReAct
-}
-
-/// <summary>
-/// 编排草案状态
-/// </summary>
-public enum DraftStatus
-{
-    Pending,
-    Approved,
-    Executing,
-    Executed,
-    Edited,
-    Rejected,
-    Expired,
-    Cancelled
-}
-
-/// <summary>
-/// Persona 状态
-/// </summary>
-public enum PersonaStatus
-{
-    Active,
-    Paused,
-    Disabled
-}
-
-/// <summary>
-/// 计划状态
-/// </summary>
-public enum PlanStatus
-{
-    Draft,
-    Active,
-    Completed,
-    Cancelled
-}
-
-/// <summary>
-/// 决策类型
-/// </summary>
-public enum DecisionType
-{
-    AddTasks,
-    Rebalance,
-    CancelPlan,
-    AdjustPriority
 }

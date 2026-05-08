@@ -123,8 +123,6 @@ namespace ClawPilot.App
 
         private void NavTasks_Click(object sender, RoutedEventArgs e) => ShowPage("PageTasks");
         private void NavOps_Click(object sender, RoutedEventArgs e) => ShowPage("PageOps");
-        private void NavOrch_Click(object sender, RoutedEventArgs e) => ShowPage("PageOrchestrator");
-        private void NavDrafts_Click(object sender, RoutedEventArgs e) => ShowPage("PageDrafts");
         private void NavAutopilot_Click(object sender, RoutedEventArgs e) => ShowPage("PageAutopilot");
         private void NavSettings_Click(object sender, RoutedEventArgs e) => ShowPage("PageSettings");
 
@@ -132,8 +130,6 @@ namespace ClawPilot.App
         {
             PageTasks.Visibility = pageName == "PageTasks" ? Visibility.Visible : Visibility.Collapsed;
             PageOps.Visibility = pageName == "PageOps" ? Visibility.Visible : Visibility.Collapsed;
-            PageOrchestrator.Visibility = pageName == "PageOrchestrator" ? Visibility.Visible : Visibility.Collapsed;
-            PageDrafts.Visibility = pageName == "PageDrafts" ? Visibility.Visible : Visibility.Collapsed;
             PageAutopilot.Visibility = pageName == "PageAutopilot" ? Visibility.Visible : Visibility.Collapsed;
             PageSettings.Visibility = pageName == "PageSettings" ? Visibility.Visible : Visibility.Collapsed;
         }

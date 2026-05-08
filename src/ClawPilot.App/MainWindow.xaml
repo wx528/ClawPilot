@@ -235,8 +235,6 @@
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <RadioButton x:Name="NavTasks" Content="📋" ToolTip="任务列表" Style="{StaticResource NavButtonStyle}" IsChecked="True" Click="NavTasks_Click"/>
                         <RadioButton x:Name="NavOps" Content="⚡" ToolTip="快捷操作" Style="{StaticResource NavButtonStyle}" Click="NavOps_Click" Margin="0,12,0,0"/>
-                        <RadioButton x:Name="NavOrch" Content="🎯" ToolTip="任务编排" Style="{StaticResource NavButtonStyle}" Click="NavOrch_Click" Margin="0,12,0,0"/>
-                        <RadioButton x:Name="NavDrafts" Content="📝" ToolTip="编排草案" Style="{StaticResource NavButtonStyle}" Click="NavDrafts_Click" Margin="0,12,0,0"/>
                         <RadioButton x:Name="NavAutopilot" Content="🧠" ToolTip="自动驾驶" Style="{StaticResource NavButtonStyle}" Click="NavAutopilot_Click" Margin="0,12,0,0"/>
                         <RadioButton x:Name="NavSettings" Content="⚙️" ToolTip="设置" Style="{StaticResource NavButtonStyle}" Click="NavSettings_Click" Margin="0,12,0,0"/>
                     </StackPanel>
@@ -399,6 +397,9 @@
                                                 <ComboBoxItem Content="Hermes"/>
                                                 <ComboBoxItem Content="KimiCode"/>
                                                 <ComboBoxItem Content="CodeBuddy"/>
+                                                <ComboBoxItem Content="Aider"/>
+                                                <ComboBoxItem Content="Codex"/>
+                                                <ComboBoxItem Content="QwenCode"/>
                                             </ComboBox>
                                         </Grid>
                                         <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -466,50 +467,6 @@
                                 </Border>
                             </StackPanel>
                         </ScrollViewer>
-                    </Grid>
-
-                    <!-- 编排页 -->
-                    <Grid x:Name="PageOrchestrator" Visibility="Collapsed">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
-                            <StackPanel>
-                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="快捷操作" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Button Content="加载配置文件" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Command="{Binding LoadConfigFromFileCommand}"/>
-                                            <Button Content="执行编排周期" Background="#667EEA" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Margin="8,0,0,0" Command="{Binding ToggleOrchestratorCommand}"/>
-                                            <Button Content="刷新全部" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="12" Padding="12,8" Cursor="Hand" Margin="8,0,0,0" Command="{Binding RefreshCommand}"/>
-                                        </StackPanel>
-                                        <TextBlock x:Name="OrchResultText" Text="" FontSize="12" Foreground="#8a9ba8" Margin="0,8,0,0" TextWrapping="Wrap"/>
-                                    </StackPanel>
-                                </Border>
-                                <!-- 资源概览 -->
-                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="资源概览" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,12"/>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="活跃 Persona" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
-                                                <TextBlock x:Name="DashActivePersonas" Text="--" FontSize="28" FontWeight="Light" Foreground="#667EEA"/>
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="活跃计划" FontSize="12" Foreground="#8a9ba8" Margin="0,0,0,4"/>
-                                                <TextBlock x:Name="DashActivePlans" Text="--" FontSize="28" FontWeight="Light" Foreground="#4CAF50"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Grid>
-
-                    <!-- 草案页 -->
-                    <Grid x:Name="PageDrafts" Visibility="Collapsed">
-                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <TextBlock Text="📝" FontSize="40" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                            <TextBlock Text="草案功能开发中..." FontSize="14" Foreground="#8a9ba8" HorizontalAlignment="Center"/>
-                        </StackPanel>
                     </Grid>
 
                     <!-- 自动驾驶页 -->
@@ -630,6 +587,9 @@
                                                 <ComboBoxItem Content="Hermes"/>
                                                 <ComboBoxItem Content="KimiCode"/>
                                                 <ComboBoxItem Content="CodeBuddy"/>
+                                                <ComboBoxItem Content="Aider"/>
+                                                <ComboBoxItem Content="Codex"/>
+                                                <ComboBoxItem Content="QwenCode"/>
                                             </ComboBox>
                                             <CheckBox x:Name="ExecutorAutoCheckBox" Content="让编排者自主决定" IsChecked="{Binding AutopilotVm.IsExecutorAuto}" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="8,0,0,0" Checked="ExecutorAutoCheckBox_Changed" Unchecked="ExecutorAutoCheckBox_Changed"/>
                                             <TextBlock x:Name="HermesAgentHint" Text="(本地 Hermes Agent，无需指定代理)" FontSize="11" Foreground="#6a7b88" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed"/>

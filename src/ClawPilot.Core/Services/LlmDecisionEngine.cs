@@ -20,208 +20,6 @@ public class LlmDecisionEngine
         _logger = logger;
     }
 
-    /// <summary>
-    /// 让 LLM 根据当前上下文做出编排决策
-    /// </summary>
-    public async Task<OrchestrationDecision?> DecideAsync(
-        OrchestratorProfile profile,
-        OrchestrationContext context,
-        CancellationToken ct = default)
-    {
-        var systemPrompt = BuildSystemPrompt(profile, context);
-        var userPrompt = BuildUserPrompt(context);
-
-        _logger?.LogInformation("请求 LLM 编排决策...");
-        var response = await _llmClient.ChatCompletionAsync(systemPrompt, userPrompt, temperature: 0.3, ct: ct);
-
-        var decision = ParseDecision(response);
-        if (decision == null)
-        {
-            _logger?.LogWarning("LLM 返回无法解析");
-            return null;
-        }
-
-        if (!ValidateDecision(decision, context))
-        {
-            _logger?.LogWarning("LLM 决策校验失败，丢弃");
-            return null;
-        }
-
-        decision.DecisionModeUsed = "llm_only";
-        return decision;
-    }
-
-    private string BuildSystemPrompt(OrchestratorProfile profile, OrchestrationContext context)
-    {
-        var sb = new System.Text.StringBuilder();
-
-        sb.AppendLine($"You are an intelligent task orchestrator named '{profile.DisplayName ?? profile.Name}'.");
-        sb.AppendLine();
-
-        if (!string.IsNullOrWhiteSpace(profile.OrchestratorPersona))
-        {
-            sb.AppendLine("Your persona:");
-            sb.AppendLine(profile.OrchestratorPersona);
-            sb.AppendLine();
-        }
-
-        if (profile.OrchestratorRules.Count > 0)
-        {
-            sb.AppendLine("Rules:");
-            foreach (var rule in profile.OrchestratorRules)
-            {
-                sb.AppendLine($"- {rule}");
-            }
-            sb.AppendLine();
-        }
-
-        if (profile.FocusDomains.Count > 0)
-        {
-            sb.AppendLine($"Focus domains: {string.Join(", ", profile.FocusDomains)}");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("Available Personas:");
-        foreach (var persona in context.AvailablePersonas)
-        {
-            var status = persona.Status == PersonaStatus.Active ? "active" : "inactive";
-            sb.AppendLine($"- {persona.Name}: {persona.Description} (max_concurrent={persona.MaxConcurrent}, status={status})");
-        }
-        sb.AppendLine();
-
-        sb.AppendLine(@"You must return a JSON object with this exact structure:
-{
-  ""decision_type"": ""add_tasks"",
-  ""reasoning"": ""为什么做出这个决策"",
-  ""tasks_to_add"": [
-    {
-      ""persona_name"": ""persona_name"",
-      ""message"": ""任务指令内容"",
-      ""task_type"": ""openclaw"",
-      ""priority"": ""normal"",
-      ""reason"": ""为什么添加这个任务""
-    }
-  ]
-}
-
-Rules for tasks_to_add:
-- Only use persona_name from the Available Personas list above.
-- message should be a clear, actionable instruction.
-- priority can be: low, normal, high, urgent.
-- If no tasks should be added, return an empty tasks_to_add array.
-- Do not include markdown formatting, only raw JSON.");
-
-        return sb.ToString();
-    }
-
-    private string BuildUserPrompt(OrchestrationContext context)
-    {
-        var sb = new System.Text.StringBuilder();
-
-        sb.AppendLine($"Current time: {context.Now:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine($"Profile: {context.ProfileName}");
-        sb.AppendLine();
-
-        sb.AppendLine("Current system state:");
-        sb.AppendLine($"- Pending tasks: {context.TotalPendingTasks}");
-        sb.AppendLine($"- Running tasks: {context.TotalRunningTasks}");
-        sb.AppendLine($"- Total tasks today: {context.TotalTasksToday}");
-        sb.AppendLine();
-
-        if (context.PersonaLoad.Count > 0)
-        {
-            sb.AppendLine("Persona load:");
-            foreach (var kv in context.PersonaLoad)
-            {
-                sb.AppendLine($"- {kv.Key}: {kv.Value} running");
-            }
-            sb.AppendLine();
-        }
-
-        if (context.RecentTasks.Count > 0)
-        {
-            sb.AppendLine("Recent task results (last 5):");
-            foreach (var task in context.RecentTasks.Take(5))
-            {
-                sb.AppendLine($"- [{task.Status}] {task.AgentName}: {Truncate(task.Message, 80)}");
-                if (!string.IsNullOrWhiteSpace(task.Output))
-                {
-                    sb.AppendLine($"  Output: {Truncate(task.Output, 100)}");
-                }
-            }
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("Based on the above context, decide what tasks should be added now.");
-        sb.AppendLine("Return ONLY the JSON object, no other text.");
-
-        return sb.ToString();
-    }
-
-    private OrchestrationDecision? ParseDecision(string response)
-    {
-        try
-        {
-            var json = ExtractJson(response);
-            var output = JsonSerializer.Deserialize<LlmDecisionOutput>(json, _jsonOptions);
-            if (output == null) return null;
-
-            var decision = new OrchestrationDecision
-            {
-                DecisionType = ParseDecisionType(output.DecisionType),
-                Reasoning = output.Reasoning,
-                TasksToAdd = output.TasksToAdd?
-                    .Select(t => new TaskToAdd
-                    {
-                        PersonaName = t.PersonaName,
-                        Message = t.Message,
-                        TaskType = t.TaskType,
-                        Priority = ParsePriority(t.Priority),
-                        Reason = t.Reason
-                    })
-                    .ToList() ?? new List<TaskToAdd>()
-            };
-
-            return decision;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "解析 LLM 决策 JSON 失败");
-            return null;
-        }
-    }
-
-    private bool ValidateDecision(OrchestrationDecision decision, OrchestrationContext context)
-    {
-        var availableNames = new HashSet<string>(
-            context.AvailablePersonas.Where(p => p.Status == PersonaStatus.Active)
-                     .Select(p => p.Name));
-
-        foreach (var task in decision.TasksToAdd)
-        {
-            if (!availableNames.Contains(task.PersonaName))
-            {
-                _logger?.LogWarning("LLM 引用了不存在的 Persona: {Persona}", task.PersonaName);
-                return false;
-            }
-        }
-
-        foreach (var task in decision.TasksToAdd)
-        {
-            var persona = context.AvailablePersonas.FirstOrDefault(p => p.Name == task.PersonaName);
-            if (persona == null) continue;
-
-            var currentLoad = context.PersonaLoad.GetValueOrDefault(persona.Name, 0);
-            if (currentLoad >= persona.MaxConcurrent)
-            {
-                _logger?.LogWarning("Persona {Persona} 已达到最大并发数 {Max}", persona.Name, persona.MaxConcurrent);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private static string ExtractJson(string content)
     {
         var match = Regex.Match(content, @"```(?:json)?\s*(.*?)\s*```", RegexOptions.Singleline);
@@ -235,14 +33,6 @@ Rules for tasks_to_add:
 
         return content.Trim();
     }
-
-    private static DecisionType ParseDecisionType(string? value) => value?.ToLower() switch
-    {
-        "rebalance" => DecisionType.Rebalance,
-        "cancel_plan" => DecisionType.CancelPlan,
-        "adjust_priority" => DecisionType.AdjustPriority,
-        _ => DecisionType.AddTasks
-    };
 
     private static TaskPriority ParsePriority(string? value) => value?.ToLower() switch
     {
@@ -264,30 +54,6 @@ Rules for tasks_to_add:
         AllowTrailingCommas = true,
         ReadCommentHandling = JsonCommentHandling.Skip
     };
-
-    private class LlmDecisionOutput
-    {
-        [JsonPropertyName("decision_type")]
-        public string DecisionType { get; set; } = "add_tasks";
-        [JsonPropertyName("reasoning")]
-        public string Reasoning { get; set; } = "";
-        [JsonPropertyName("tasks_to_add")]
-        public List<LlmTaskToAdd> TasksToAdd { get; set; } = [];
-    }
-
-    private class LlmTaskToAdd
-    {
-        [JsonPropertyName("persona_name")]
-        public string PersonaName { get; set; } = "";
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = "";
-        [JsonPropertyName("task_type")]
-        public string TaskType { get; set; } = "openclaw";
-        [JsonPropertyName("priority")]
-        public string Priority { get; set; } = "normal";
-        [JsonPropertyName("reason")]
-        public string Reason { get; set; } = "";
-    }
 
     // ==================== 自动驾驶编排决策 ====================
 
@@ -481,7 +247,10 @@ Rules for tasks_to_add:
                         Message = t.Message ?? "",
                         TaskType = t.TaskType ?? "openclaw",
                         Priority = t.Priority ?? "normal",
-                        Reason = t.Reason ?? ""
+                        Reason = t.Reason ?? "",
+                        DependsOnTaskId = t.DependsOnTaskId,
+                        ChainId = t.ChainId,
+                        ChainRound = t.ChainRound
                     })
                     .ToList() ?? new List<AutopilotTaskToAdd>(),
                 WhiteboardUpdate = output.WhiteboardUpdate ?? "",
@@ -533,5 +302,93 @@ Rules for tasks_to_add:
         public string? Priority { get; set; }
         [JsonPropertyName("reason")]
         public string? Reason { get; set; }
+        [JsonPropertyName("depends_on_task_id")]
+        public int? DependsOnTaskId { get; set; }
+        [JsonPropertyName("chain_id")]
+        public string? ChainId { get; set; }
+        [JsonPropertyName("chain_round")]
+        public int ChainRound { get; set; } = 1;
+    }
+
+    // ==================== 审核报告解析 ====================
+
+    public ReviewResult ParseReviewOutput(string? output)
+    {
+        var result = new ReviewResult { RawOutput = output };
+
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            result.Passed = false;
+            result.Summary = "No output from reviewer";
+            return result;
+        }
+
+        var passMatch = Regex.Match(output, @"(?:总体结果|RESULT|VERDICT|Overall)\s*[:：]\s*(PASS|FAIL|✅|❌|通过|不通过)", RegexOptions.IgnoreCase);
+        if (passMatch.Success)
+        {
+            var val = passMatch.Groups[1].Value.ToUpperInvariant();
+            result.Passed = val is "PASS" or "✅" or "通过";
+        }
+        else
+        {
+            result.Passed = !Regex.IsMatch(output, @"FAIL|❌|不通过|未通过|存在问题", RegexOptions.IgnoreCase);
+        }
+
+        var summaryMatch = Regex.Match(output, @"(?:总结|摘要|Summary|SUMMARY)\s*[:：]\s*(.+?)(?:\n|$)", RegexOptions.IgnoreCase);
+        if (summaryMatch.Success)
+        {
+            result.Summary = summaryMatch.Groups[1].Value.Trim();
+        }
+        else
+        {
+            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            result.Summary = lines.Length > 0 ? Truncate(lines[0], 200) : "";
+        }
+
+        var checkPattern = @"[-•✅❌√×]\s*(.+?)(?:[:：]\s*(PASS|FAIL|✅|❌|通过|不通过|√|×))?(?:\n|$)";
+        var checkMatches = Regex.Matches(output, checkPattern, RegexOptions.IgnoreCase);
+        foreach (Match m in checkMatches)
+        {
+            var name = m.Groups[1].Value.Trim();
+            if (string.IsNullOrWhiteSpace(name) || name.Length < 2) continue;
+
+            var statusStr = m.Groups[2].Value.ToUpperInvariant();
+            var passed = statusStr is "PASS" or "✅" or "通过" or "√" || string.IsNullOrEmpty(m.Groups[2].Value);
+
+            result.CheckItems.Add(new ReviewCheckItem
+            {
+                Name = name,
+                Passed = passed,
+                Detail = null
+            });
+        }
+
+        var issuePattern = @"(?:问题|Issue|ISSUE|缺陷|Bug|BUG)\s*\d*\s*[:：]\s*(.+?)(?:\n|$)";
+        var issueMatches = Regex.Matches(output, issuePattern, RegexOptions.IgnoreCase);
+        foreach (Match m in issueMatches)
+        {
+            var issue = m.Groups[1].Value.Trim();
+            if (!string.IsNullOrWhiteSpace(issue))
+            {
+                result.Issues.Add(issue);
+            }
+        }
+
+        if (result.Issues.Count == 0 && !result.Passed)
+        {
+            var failLines = output.Split('\n')
+                .Select(l => l.Trim())
+                .Where(l => l.StartsWith("-") || l.StartsWith("•") || l.StartsWith("❌"))
+                .Select(l => l.TrimStart('-', '•', '❌', ' ').Trim())
+                .Where(l => l.Length > 5)
+                .Take(5);
+
+            foreach (var line in failLines)
+            {
+                result.Issues.Add(line);
+            }
+        }
+
+        return result;
     }
 }
