@@ -24,6 +24,7 @@ public class AutopilotOrchestrator
     public string AgentName { get; set; } = "main";
     public ExecutorType ExecutorType { get; set; } = ExecutorType.OpenClaw;
     public AutopilotMode Mode { get; set; } = AutopilotMode.PlanAndExecute;
+    public string? PersonaPrompt { get; set; }
     private string? _lastError;
     private int _consecutiveEmptyCycles = 0;
     private DaemonService? _daemonService;
@@ -282,7 +283,8 @@ public class AutopilotOrchestrator
 
             var decision = await _llmEngine.DecideAutopilotAsync(
                 goal, whiteboard, recentResults, elapsed, nextWake,
-                allowAutoExecutor: ExecutorType == ExecutorType.Auto, ct);
+                allowAutoExecutor: ExecutorType == ExecutorType.Auto,
+                personaPrompt: PersonaPrompt, ct);
 
             if (decision == null)
             {

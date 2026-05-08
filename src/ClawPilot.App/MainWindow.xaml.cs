@@ -89,6 +89,36 @@ namespace ClawPilot.App
             }
         }
 
+        /// <summary>
+        /// 编排者 Tab 切换事件
+        /// </summary>
+        private void PresetTabList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            var vm = ViewModel?.AutopilotVm;
+            if (vm == null) return;
+
+            // 如果正在运行，确认是否切换（仅当用户主动切换时）
+            if (vm.IsRunning && e.RemovedItems.Count > 0)
+            {
+                var result = MessageBox.Show(
+                    "切换编排者将停止当前运行并重新启动，是否继续？",
+                    "确认切换",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (result != MessageBoxResult.Yes)
+                {
+                    // 恢复原来的选中项
+                    var list = (System.Windows.Controls.ListBox)sender;
+                    list.SelectionChanged -= PresetTabList_SelectionChanged;
+                    list.SelectedItem = e.RemovedItems[0];
+                    list.SelectionChanged += PresetTabList_SelectionChanged;
+                    return;
+                }
+            }
+
+            UpdateExecutorTypeUI();
+        }
+
         #region 导航
 
         private void NavTasks_Click(object sender, RoutedEventArgs e) => ShowPage("PageTasks");

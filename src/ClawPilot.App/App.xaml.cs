@@ -1,5 +1,6 @@
 using ClawPilot.App.Logging;
 using ClawPilot.App.ViewModels;
+using ClawPilot.Core.Models;
 using ClawPilot.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -440,5 +441,7 @@ namespace ClawPilot.App
         public string? CodeBuddyWorkDir { get; set; }
         public bool CodeBuddySkipPermissions { get; set; } = true;
         public string? CodeBuddyAllowedTools { get; set; }
+        public List<OrchestratorPreset>? OrchestratorPresets { get; set; }
+        public string? ActivePresetId { get; set; } = "general";
     }
 }

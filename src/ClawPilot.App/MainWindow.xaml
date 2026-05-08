@@ -516,8 +516,73 @@
                     <Grid x:Name="PageAutopilot" Visibility="Collapsed">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
                             <StackPanel>
+                                <!-- 编排者 Tab 栏 -->
+                                <Border Background="#263340" CornerRadius="8,8,0,0" Padding="12,8" Margin="0,0,0,0" BorderBrush="#1e2d3a" BorderThickness="0,0,0,1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Tab 按钮 - 使用 ListBox 做横向 Tab -->
+                                        <ListBox Grid.Column="0" x:Name="PresetTabList"
+                                                 ItemsSource="{Binding AutopilotVm.Presets}"
+                                                 SelectedIndex="{Binding AutopilotVm.SelectedPresetIndex, Mode=TwoWay}"
+                                                 SelectionChanged="PresetTabList_SelectionChanged"
+                                                 BorderThickness="0" Background="Transparent"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ListBox.ItemsPanel>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="13" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem">
+                                                    <Setter Property="Background" Value="#1a2332"/>
+                                                    <Setter Property="Foreground" Value="#8a9ba8"/>
+                                                    <Setter Property="Padding" Value="12,6"/>
+                                                    <Setter Property="Margin" Value="0,0,2,0"/>
+                                                    <Setter Property="Cursor" Value="Hand"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6,6,0,0" Padding="{TemplateBinding Padding}" Cursor="Hand">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="Bd" Property="Background" Value="#2a3a4a"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="Bd" Property="Background" Value="#3a4a5a"/>
+                                                                        <Setter TargetName="Bd" Property="BorderBrush" Value="#667EEA"/>
+                                                                        <Setter TargetName="Bd" Property="BorderThickness" Value="0,2,0,0"/>
+                                                                        <Setter Property="Foreground" Value="White"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+                                        </ListBox>
+                                        <!-- 添加/删除预设 -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="+" Background="Transparent" Foreground="#8a9ba8" BorderThickness="0" FontSize="16" Padding="6,2" Cursor="Hand" Command="{Binding AutopilotVm.AddPresetCommand}" ToolTip="添加编排者"/>
+                                            <Button Content="✕" Background="Transparent" Foreground="#F44336" BorderThickness="0" FontSize="12" Padding="6,2" Cursor="Hand" Margin="4,0,0,0" Command="{Binding AutopilotVm.RemovePresetCommand}" ToolTip="删除当前编排者"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
                                 <!-- 控制栏 -->
-                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                <Border Background="#263340" CornerRadius="0,0,8,8" Padding="16" Margin="0,0,0,12">
                                     <StackPanel>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                             <Button Content="启动自动驾驶" Background="#4CAF50" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Command="{Binding AutopilotVm.ToggleAutopilotCommand}">
@@ -534,6 +599,13 @@
                                             </Button>
                                             <Button Content="立即唤醒" Background="#7C3AED" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.TriggerNowCommand}"/>
                                             <Button Content="刷新状态" Background="#607D8B" Foreground="White" BorderThickness="0" FontSize="13" Padding="16,10" Cursor="Hand" Margin="12,0,0,0" Command="{Binding AutopilotVm.RefreshStatusCommand}"/>
+                                            <!-- 当前编排者名称 -->
+                                            <Border Background="#1a2332" CornerRadius="4" Padding="10,6" Margin="16,0,0,0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding AutopilotVm.SelectedPreset.Icon}" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBlock Text="{Binding AutopilotVm.SelectedPreset.DisplayName}" FontSize="13" Foreground="#667EEA" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
                                             <TextBlock Text="编排间隔" FontSize="12" Foreground="#8a9ba8" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -625,6 +697,15 @@
                                             <TextBlock Text="{Binding AutopilotVm.GoalTitle}" FontSize="14" FontWeight="Medium" Foreground="White" TextWrapping="Wrap" Margin="0,0,0,4"/>
                                             <TextBlock Text="{Binding AutopilotVm.GoalDescription}" FontSize="12" Foreground="#8a9ba8" TextWrapping="Wrap"/>
                                         </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 编排者人格 Prompt -->
+                                <Border Background="#263340" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="🎭 编排者人格" FontSize="13" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,4"/>
+                                        <TextBlock Text="定义编排者的角色、关注点和策略，影响 LLM 的编排决策" FontSize="11" Foreground="#6a7b88" Margin="0,0,0,8"/>
+                                        <TextBox Text="{Binding AutopilotVm.PresetPersonaPrompt, UpdateSourceTrigger=PropertyChanged}" FontSize="12" Background="#1a2332" Foreground="#e0e0e0" BorderBrush="#1e2d3a" BorderThickness="1" Padding="12" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
                                     </StackPanel>
                                 </Border>
 

@@ -298,9 +298,10 @@ Rules for tasks_to_add:
         TimeSpan elapsedSinceStart,
         DateTime nextWakeTime,
         bool allowAutoExecutor = false,
+        string? personaPrompt = null,
         CancellationToken ct = default)
     {
-        var systemPrompt = BuildAutopilotSystemPrompt(allowAutoExecutor);
+        var systemPrompt = BuildAutopilotSystemPrompt(allowAutoExecutor, personaPrompt);
         var userPrompt = BuildAutopilotUserPrompt(goal, whiteboard, recentResults, elapsedSinceStart, nextWakeTime);
 
         _logger?.LogInformation("请求自动驾驶编排决策...");
@@ -323,7 +324,7 @@ Rules for tasks_to_add:
         return decision;
     }
 
-    private string BuildAutopilotSystemPrompt(bool allowAutoExecutor)
+    private string BuildAutopilotSystemPrompt(bool allowAutoExecutor, string? personaPrompt = null)
     {
         var executorRule = allowAutoExecutor
             ? "EXECUTOR SELECTION (Auto mode enabled):\n"
@@ -336,7 +337,12 @@ Rules for tasks_to_add:
             + "- Each task will be executed by the configured executor agent.\n"
             + "- Messages should be clear, specific, and actionable.\n";
 
+        var personaBlock = string.IsNullOrWhiteSpace(personaPrompt)
+            ? ""
+            : $"\nORCHESTRATOR PERSONA:\n{personaPrompt}\n\n";
+
         return "You are an intelligent autopilot orchestrator -- a persistent AI employee who works along the timeline.\n\n"
+            + personaBlock
             + "Your job is to manage a long-running mission by scheduling tasks for the next hour, based on:\n"
             + "- The mission goal\n"
             + "- Your own memory (whiteboard / notes)\n"
